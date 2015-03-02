@@ -1,0 +1,5 @@
+syntax: glob
+target
+work
+.idea
+*.iml
