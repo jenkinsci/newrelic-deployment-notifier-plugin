@@ -23,27 +23,37 @@
  */
 package org.jenkinsci.plugins.newrelicnotifier;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import hudson.model.Item;
+import hudson.model.Job;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import org.jenkinsci.plugins.newrelicnotifier.api.Application;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClient;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
+import javax.annotation.CheckForNull;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Bean to hold each deployment notification configuration.
  */
 public class DeploymentNotificationBean extends AbstractDescribableImpl<DeploymentNotificationBean> {
 
-    private final Secret apiKey;
+    private final String apiKey;
     private final String applicationId;
     private final String description;
     private final String revision;
@@ -51,7 +61,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
     private final String user;
 
     @DataBoundConstructor
-    public DeploymentNotificationBean(Secret apiKey, String applicationId, String description, String revision, String changelog, String user) {
+    public DeploymentNotificationBean(String apiKey, String applicationId, String description, String revision, String changelog, String user) {
         super();
         this.apiKey = apiKey;
         this.applicationId = applicationId;
@@ -61,7 +71,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         this.user = user;
     }
 
-    public Secret getApiKey() {
+    public String getApiKey() {
         return apiKey;
     }
 
@@ -101,26 +111,62 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         return env.expand(getUser());
     }
 
+    @CheckForNull
+    public static StandardUsernamePasswordCredentials getCredentials(Job<?,?> owner, String credentialsId, String source) {
+        if (credentialsId != null) {
+            for (StandardUsernamePasswordCredentials c : availableCredentials(owner, source)) {
+                if (c.getId().equals(credentialsId)) {
+                    return c;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static List<? extends StandardUsernamePasswordCredentials> availableCredentials(Job<?,?> owner, String source) {
+        return CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class, owner, null, URIRequirementBuilder.fromUri(source).build());
+    }
+
     @Extension
     public static final class DescriptorImpl extends Descriptor<DeploymentNotificationBean> {
 
         private final NewRelicClient client = new NewRelicClientImpl();
 
-        public FormValidation doCheckApiKey(@QueryParameter("apiKey") Secret apiKey) {
-            if (apiKey == null || 0 == Secret.toString(apiKey).length()) {
+        public ListBoxModel doFillApiKeyItems(@AncestorInPath Job<?,?> owner) {
+            if (owner == null || !owner.hasPermission(Item.CONFIGURE)) {
+                return new ListBoxModel();
+            }
+            return new StandardUsernameListBoxModel().withAll(availableCredentials(owner, client.getApiEndpoint()));
+        }
+
+        public FormValidation doCheckApiKey(@QueryParameter("apiKey") String apiKey) {
+            if (apiKey == null || apiKey.length() == 0) {
                 return FormValidation.error("Missing API Key");
             }
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillApplicationIdItems(@QueryParameter("apiKey") final Secret apiKey) throws IOException {
+        public ListBoxModel doFillApplicationIdItems(@AncestorInPath Job<?,?> owner, @QueryParameter("apiKey") final String apiKey) throws IOException {
+            if (owner == null || !owner.hasPermission(Item.CONFIGURE)) {
+                return new ListBoxModel();
+            }
             ListBoxModel items = new ListBoxModel();
-            if (apiKey != null && Secret.toString(apiKey).length() > 0) {
-                for (Application application : client.getApplications(Secret.toString(apiKey))) {
-                    items.add(application.getName(), application.getId());
+            if (apiKey != null && apiKey.length() > 0) {
+                UsernamePasswordCredentials credentials = getCredentials(owner, apiKey, client.getApiEndpoint());
+                if (credentials != null) {
+                    for (Application application : client.getApplications(Secret.toString(credentials.getPassword()))) {
+                        items.add(application.getName(), application.getId());
+                    }
                 }
             }
             return items;
+        }
+
+        public FormValidation doCheckApplicationId(@QueryParameter("applicationId") String applicationId) {
+            if (applicationId == null || applicationId.length() == 0) {
+                return FormValidation.error("No applications!");
+            }
+            return FormValidation.ok();
         }
 
         @Override

@@ -63,4 +63,10 @@ public interface NewRelicClient {
             String user
     ) throws IOException;
 
+    /**
+     * Get API Endpoint URL for looking up credentials.
+     *
+     * @return The endpoint URL for the New Relic API
+     */
+    String getApiEndpoint();
 }

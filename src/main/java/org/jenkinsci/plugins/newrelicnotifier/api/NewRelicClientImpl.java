@@ -115,6 +115,14 @@ public class NewRelicClientImpl implements NewRelicClient {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getApiEndpoint() {
+        return API_URL;
+    }
+
     private CloseableHttpClient getHttpClient() {
         HttpClientBuilder builder = HttpClientBuilder.create();
         return builder.build();

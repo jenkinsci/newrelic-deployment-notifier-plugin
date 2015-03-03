@@ -23,6 +23,7 @@
  */
 package org.jenkinsci.plugins.newrelicnotifier;
 
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
@@ -67,17 +68,23 @@ public class NewRelicDeploymentNotifier extends Notifier {
 
         boolean result = true;
         for (DeploymentNotificationBean n : getNotifications()) {
-            if (client.sendNotification(
-                    Secret.toString(n.getApiKey()),
-                    n.getApplicationId(),
-                    n.getDescription(envVars),
-                    n.getRevision(envVars),
-                    n.getChangelog(envVars),
-                    n.getUser(envVars))) {
-                listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
-            } else {
-                listener.getLogger().println("Failed to notify New Relic. Application ID: " + n.getApplicationId());
+            UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint());
+            if (credentials == null) {
+                listener.getLogger().println("Invalid credentials for Application ID: " + n.getApplicationId());
                 result = false;
+            } else {
+                if (client.sendNotification(
+                        Secret.toString(credentials.getPassword()),
+                        n.getApplicationId(),
+                        n.getDescription(envVars),
+                        n.getRevision(envVars),
+                        n.getChangelog(envVars),
+                        n.getUser(envVars))) {
+                    listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
+                } else {
+                    listener.getLogger().println("Failed to notify New Relic. Application ID: " + n.getApplicationId());
+                    result = false;
+                }
             }
         }
         return result;
