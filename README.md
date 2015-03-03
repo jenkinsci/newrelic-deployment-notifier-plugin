@@ -1,6 +1,8 @@
 Jenkins New Relic Deployment Notifier Plugin
 ============================================
 
+Jenkins plugin to notify New Relic about [deployments][].
+
 Read more: [https://wiki.jenkins-ci.org/display/JENKINS/New+Relic+Deployment+Notifier+Plugin](https://wiki.jenkins-ci.org/display/JENKINS/New+Relic+Deployment+Notifier+Plugin)
 
 Requirements
@@ -16,11 +18,13 @@ Usage
 Use the New Relic Deployment Notifier by adding it as a _Post Step_ in you Jenkins build job configuration.
 
 1. In your Jenkins job configuration go to the *Post-build Actions* section, click on *Add post-build action* and select *New Relic Deployment Notifications*
-2. Enter API key
-3. Select application
+2. Create an username/password credential for the API key. Enter the key as the password.
+3. Select an application in the dropdown list.
 4. Add any of the optional values: _description_, _revision_, _changelog_ or _user_
 
 If you have configured everything correctly, Jenkins will notify you New Relic account of subsequent deployments.
+
+It is possible to configure several applications to be notified.
 
 Maintainers
 ===========
@@ -53,5 +57,6 @@ License
 	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+[deployments]: https://docs.newrelic.com/docs/apm/applications-menu/events/deployments-dashboard
 [New Relic]: http://newrelic.com/
 [API key]: https://docs.newrelic.com/docs/apm/apis/requirements/api-key
