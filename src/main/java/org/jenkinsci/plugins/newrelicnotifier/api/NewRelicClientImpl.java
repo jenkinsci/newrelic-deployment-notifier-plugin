@@ -25,20 +25,30 @@ package org.jenkinsci.plugins.newrelicnotifier.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import hudson.ProxyConfiguration;
+import jenkins.model.Jenkins;
 import org.apache.http.*;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.ProxyAuthenticationStrategy;
+import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicNameValuePair;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,9 +69,15 @@ public class NewRelicClientImpl implements NewRelicClient {
     @Override
     public List<Application> getApplications(String apiKey) throws IOException {
         List<Application> result = new ArrayList<Application>();
-        HttpGet request = new HttpGet(API_URL + APPLICATIONS_ENDPOINT);
+        URI url = null;
+        try {
+            url = new URI(API_URL + APPLICATIONS_ENDPOINT);
+        } catch (URISyntaxException e) {
+            // no need to handle this
+        }
+        HttpGet request = new HttpGet(url);
         setHeaders(request, apiKey);
-        CloseableHttpClient client = getHttpClient();
+        CloseableHttpClient client = getHttpClient(url);
         ResponseHandler<ApplicationList> rh = new ResponseHandler<ApplicationList>() {
             @Override
             public ApplicationList handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
@@ -96,7 +112,13 @@ public class NewRelicClientImpl implements NewRelicClient {
     @Override
     public boolean sendNotification(String apiKey, String applicationId, String description, String revision,
                                     String changelog, String user) throws IOException {
-        HttpPost request = new HttpPost(API_URL + DEPLOYMENT_ENDPOINT);
+        URI url = null;
+        try {
+            url = new URI(API_URL + DEPLOYMENT_ENDPOINT);
+        } catch (URISyntaxException e) {
+            // no need to handle this
+        }
+        HttpPost request = new HttpPost(url);
         setHeaders(request, apiKey);
         List<NameValuePair> params = new ArrayList<NameValuePair>();
         params.add(new BasicNameValuePair("deployment[application_id]", applicationId));
@@ -106,9 +128,9 @@ public class NewRelicClientImpl implements NewRelicClient {
         params.add(new BasicNameValuePair("deployment[user]", user));
         UrlEncodedFormEntity entity = new UrlEncodedFormEntity(params);
         request.setEntity(entity);
-        CloseableHttpClient client = getHttpClient();
+        CloseableHttpClient client = getHttpClient(url);
         try {
-            HttpResponse response = client.execute(request);
+            CloseableHttpResponse response = client.execute(request);
             return HttpStatus.SC_CREATED == response.getStatusLine().getStatusCode();
         } finally {
             client.close();
@@ -123,8 +145,34 @@ public class NewRelicClientImpl implements NewRelicClient {
         return API_URL;
     }
 
-    private CloseableHttpClient getHttpClient() {
+    private CloseableHttpClient getHttpClient(URI url) {
         HttpClientBuilder builder = HttpClientBuilder.create();
+
+        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        if (proxyConfig != null) {
+            Proxy proxy = proxyConfig.createProxy(url.getHost());
+            if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
+                SocketAddress addr = proxy.address();
+                if (addr != null && addr instanceof InetSocketAddress) {
+                    InetSocketAddress proxyAddr = (InetSocketAddress) addr;
+                    HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
+                    DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
+                    builder = builder.setRoutePlanner(routePlanner);
+
+                    String proxyUser = proxyConfig.getUserName();
+                    if (proxyUser != null) {
+                        String proxyPass = proxyConfig.getPassword();
+                        CredentialsProvider cred = new BasicCredentialsProvider();
+                        cred.setCredentials(new AuthScope(proxyHost),
+                                new UsernamePasswordCredentials(proxyUser, proxyPass));
+                        builder = builder
+                                .setDefaultCredentialsProvider(cred)
+                                .setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
+                    }
+                }
+            }
+        }
+
         return builder.build();
     }
 
