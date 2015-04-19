@@ -30,6 +30,7 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.model.Result;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
@@ -63,29 +64,32 @@ public class NewRelicDeploymentNotifier extends Notifier {
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        EnvVars envVars = build.getEnvironment(listener);
-        envVars.overrideAll(build.getBuildVariables());
+        boolean result = false;
+        if (build.getResult() == Result.SUCCESS) {
+            EnvVars envVars = build.getEnvironment(listener);
+            envVars.overrideAll(build.getBuildVariables());
 
-        boolean result = true;
-        for (DeploymentNotificationBean n : getNotifications()) {
-            UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint());
-            if (credentials == null) {
-                listener.getLogger().println("Invalid credentials for Application ID: " + n.getApplicationId());
-                result = false;
-            } else {
-                if (client.sendNotification(
-                        Secret.toString(credentials.getPassword()),
-                        n.getApplicationId(),
-                        n.getDescription(envVars),
-                        n.getRevision(envVars),
-                        n.getChangelog(envVars),
-                        n.getUser(envVars))) {
-                    listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
+            for (DeploymentNotificationBean n : getNotifications()) {
+                UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint());
+                if (credentials == null) {
+                    listener.getLogger().println("Invalid credentials for Application ID: " + n.getApplicationId());
                 } else {
-                    listener.getLogger().println("Failed to notify New Relic. Application ID: " + n.getApplicationId());
-                    result = false;
+                    if (client.sendNotification(
+                            Secret.toString(credentials.getPassword()),
+                            n.getApplicationId(),
+                            n.getDescription(envVars),
+                            n.getRevision(envVars),
+                            n.getChangelog(envVars),
+                            n.getUser(envVars))) {
+                        listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
+                        result = true;
+                    } else {
+                        listener.getLogger().println("Failed to notify New Relic. Application ID: " + n.getApplicationId());
+                    }
                 }
             }
+        } else {
+            listener.getLogger().println("Build unsuccessful. Skipping New Relic Deployment notification.");
         }
         return result;
     }
