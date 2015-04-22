@@ -66,7 +66,7 @@ public class NewRelicDeploymentNotifier extends Notifier {
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         boolean result = true;
 
-        if (build.getResult() == Result.FAILED ||
+        if (build.getResult() == Result.FAILURE ||
             build.getResult() == Result.ABORTED) {
             listener.getLogger().println("Build unsuccessful. Skipping New Relic Deployment notification.");
             return false;
