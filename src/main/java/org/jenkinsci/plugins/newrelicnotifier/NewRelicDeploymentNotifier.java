@@ -48,8 +48,6 @@ import java.util.List;
  */
 public class NewRelicDeploymentNotifier extends Notifier {
 
-    private final NewRelicClient client = new NewRelicClientImpl();
-
     private final List<DeploymentNotificationBean> notifications;
 
     @DataBoundConstructor
@@ -75,6 +73,8 @@ public class NewRelicDeploymentNotifier extends Notifier {
         EnvVars envVars = build.getEnvironment(listener);
         envVars.overrideAll(build.getBuildVariables());
 
+        NewRelicClient client = getClient();
+
         for (DeploymentNotificationBean n : getNotifications()) {
             UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint());
             if (credentials == null) {
@@ -95,6 +95,11 @@ public class NewRelicDeploymentNotifier extends Notifier {
             }
         }
         return result;
+    }
+
+    // help testing
+    public NewRelicClient getClient() {
+        return new NewRelicClientImpl();
     }
 
     @Override

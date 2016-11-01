@@ -80,7 +80,7 @@ public class NewRelicClientImpl implements NewRelicClient {
         CloseableHttpClient client = getHttpClient(url);
         ResponseHandler<ApplicationList> rh = new ResponseHandler<ApplicationList>() {
             @Override
-            public ApplicationList handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+            public ApplicationList handleResponse(HttpResponse response) throws IOException {
                 StatusLine statusLine = response.getStatusLine();
                 if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
                     throw new HttpResponseException(
@@ -101,7 +101,9 @@ public class NewRelicClientImpl implements NewRelicClient {
             ApplicationList response = client.execute(request, rh);
             result.addAll(response.getApplications());
         } finally {
-            client.close();
+            if (client != null) {
+                client.close();
+            }
         }
         return result;
     }
@@ -129,12 +131,16 @@ public class NewRelicClientImpl implements NewRelicClient {
         UrlEncodedFormEntity entity = new UrlEncodedFormEntity(params);
         request.setEntity(entity);
         CloseableHttpClient client = getHttpClient(url);
+        boolean result = false;
         try {
             CloseableHttpResponse response = client.execute(request);
-            return HttpStatus.SC_CREATED == response.getStatusLine().getStatusCode();
+            result = HttpStatus.SC_CREATED == response.getStatusLine().getStatusCode();
         } finally {
-            client.close();
+            if (client != null) {
+                client.close();
+            }
         }
+        return result;
     }
 
     /**
@@ -145,29 +151,31 @@ public class NewRelicClientImpl implements NewRelicClient {
         return API_URL;
     }
 
-    private CloseableHttpClient getHttpClient(URI url) {
+    protected CloseableHttpClient getHttpClient(URI url) {
         HttpClientBuilder builder = HttpClientBuilder.create();
 
-        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
-        if (proxyConfig != null) {
-            Proxy proxy = proxyConfig.createProxy(url.getHost());
-            if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
-                SocketAddress addr = proxy.address();
-                if (addr != null && addr instanceof InetSocketAddress) {
-                    InetSocketAddress proxyAddr = (InetSocketAddress) addr;
-                    HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
-                    DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
-                    builder = builder.setRoutePlanner(routePlanner);
+        if (Jenkins.getInstance() != null) {
+            ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+            if (proxyConfig != null) {
+                Proxy proxy = proxyConfig.createProxy(url.getHost());
+                if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
+                    SocketAddress addr = proxy.address();
+                    if (addr != null && addr instanceof InetSocketAddress) {
+                        InetSocketAddress proxyAddr = (InetSocketAddress) addr;
+                        HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
+                        DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
+                        builder = builder.setRoutePlanner(routePlanner);
 
-                    String proxyUser = proxyConfig.getUserName();
-                    if (proxyUser != null) {
-                        String proxyPass = proxyConfig.getPassword();
-                        CredentialsProvider cred = new BasicCredentialsProvider();
-                        cred.setCredentials(new AuthScope(proxyHost),
-                                new UsernamePasswordCredentials(proxyUser, proxyPass));
-                        builder = builder
-                                .setDefaultCredentialsProvider(cred)
-                                .setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
+                        String proxyUser = proxyConfig.getUserName();
+                        if (proxyUser != null) {
+                            String proxyPass = proxyConfig.getPassword();
+                            CredentialsProvider cred = new BasicCredentialsProvider();
+                            cred.setCredentials(new AuthScope(proxyHost),
+                                    new UsernamePasswordCredentials(proxyUser, proxyPass));
+                            builder = builder
+                                    .setDefaultCredentialsProvider(cred)
+                                    .setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
+                        }
                     }
                 }
             }
