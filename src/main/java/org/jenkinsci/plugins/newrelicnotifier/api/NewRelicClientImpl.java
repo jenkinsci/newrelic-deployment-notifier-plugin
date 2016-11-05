@@ -68,7 +68,7 @@ public class NewRelicClientImpl implements NewRelicClient {
      */
     @Override
     public List<Application> getApplications(String apiKey) throws IOException {
-        List<Application> result = new ArrayList<Application>();
+        List<Application> result = new ArrayList<>();
         URI url = null;
         try {
             url = new URI(API_URL + APPLICATIONS_ENDPOINT);
@@ -122,7 +122,7 @@ public class NewRelicClientImpl implements NewRelicClient {
         }
         HttpPost request = new HttpPost(url);
         setHeaders(request, apiKey);
-        List<NameValuePair> params = new ArrayList<NameValuePair>();
+        List<NameValuePair> params = new ArrayList<>();
         params.add(new BasicNameValuePair("deployment[application_id]", applicationId));
         params.add(new BasicNameValuePair("deployment[description]", description));
         params.add(new BasicNameValuePair("deployment[revision]", revision));
