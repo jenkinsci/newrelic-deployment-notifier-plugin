@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.*;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -93,7 +94,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                     throw new ClientProtocolException("Response contains no content");
                 }
                 Gson gson = new GsonBuilder().create();
-                Reader reader = new InputStreamReader(entity.getContent());
+                Reader reader = new InputStreamReader(entity.getContent(), Charset.forName("UTF-8"));
                 return gson.fromJson(reader, ApplicationList.class);
             }
         };
@@ -153,9 +154,10 @@ public class NewRelicClientImpl implements NewRelicClient {
 
     protected CloseableHttpClient getHttpClient(URI url) {
         HttpClientBuilder builder = HttpClientBuilder.create();
+        Jenkins instance = Jenkins.getInstance();
 
-        if (Jenkins.getInstance() != null) {
-            ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        if (instance != null) {
+            ProxyConfiguration proxyConfig = instance.proxy;
             if (proxyConfig != null) {
                 Proxy proxy = proxyConfig.createProxy(url.getHost());
                 if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
