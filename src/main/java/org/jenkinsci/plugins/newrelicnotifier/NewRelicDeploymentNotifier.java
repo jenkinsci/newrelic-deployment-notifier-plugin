@@ -48,8 +48,6 @@ import java.util.List;
  */
 public class NewRelicDeploymentNotifier extends Notifier {
 
-    private final NewRelicClient client = new NewRelicClientImpl();
-
     private final List<DeploymentNotificationBean> notifications;
 
     @DataBoundConstructor
@@ -68,17 +66,24 @@ public class NewRelicDeploymentNotifier extends Notifier {
 
         if (build.getResult() == Result.FAILURE ||
             build.getResult() == Result.ABORTED) {
-            listener.getLogger().println("Build unsuccessful. Skipping New Relic Deployment notification.");
+            listener.error("Build unsuccessful. Skipping New Relic Deployment notification.");
+            return false;
+        }
+
+        if (getNotifications() == null || getNotifications().isEmpty()) {
+            listener.fatalError("Missing notifications!");
             return false;
         }
 
         EnvVars envVars = build.getEnvironment(listener);
         envVars.overrideAll(build.getBuildVariables());
 
+        NewRelicClient client = getClient();
+
         for (DeploymentNotificationBean n : getNotifications()) {
             UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint());
             if (credentials == null) {
-                listener.getLogger().println("Invalid credentials for Application ID: " + n.getApplicationId());
+                listener.error("Invalid credentials for Application ID: %s", n.getApplicationId());
                 result = false;
             } else {
                 if (client.sendNotification(Secret.toString(credentials.getPassword()),
@@ -89,12 +94,17 @@ public class NewRelicDeploymentNotifier extends Notifier {
                                             n.getUser(envVars))) {
                     listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
                 } else {
-                    listener.getLogger().println("Failed to notify New Relic. Application ID: " + n.getApplicationId());
+                    listener.error("Failed to notify New Relic. Application ID: %s", n.getApplicationId());
                     result = false;
                 }
             }
         }
         return result;
+    }
+
+    // help testing
+    public NewRelicClient getClient() {
+        return new NewRelicClientImpl();
     }
 
     @Override

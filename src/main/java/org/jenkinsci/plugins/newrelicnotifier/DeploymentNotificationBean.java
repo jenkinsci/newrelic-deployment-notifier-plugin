@@ -23,6 +23,8 @@
  */
 package org.jenkinsci.plugins.newrelicnotifier;
 
+import com.cloudbees.plugins.credentials.CredentialsMatcher;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
@@ -112,31 +114,25 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
     }
 
     @CheckForNull
-    public static StandardUsernamePasswordCredentials getCredentials(Job<?,?> owner, String credentialsId, String source) {
-        if (credentialsId != null) {
-            for (StandardUsernamePasswordCredentials c : availableCredentials(owner, source)) {
-                if (c.getId().equals(credentialsId)) {
-                    return c;
-                }
-            }
-        }
-        return null;
+    public static StandardUsernamePasswordCredentials getCredentials(Job<?,?> owner, String credentialId, String source) {
+        List<StandardUsernamePasswordCredentials> credentials = availableCredentials(owner, source);
+        CredentialsMatcher matcher = CredentialsMatchers.withId(credentialId);
+        return CredentialsMatchers.firstOrNull(credentials, matcher);
     }
 
-    private static List<? extends StandardUsernamePasswordCredentials> availableCredentials(Job<?,?> owner, String source) {
-        return CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class, owner, null, URIRequirementBuilder.fromUri(source).build());
+    private static List<StandardUsernamePasswordCredentials> availableCredentials(Job<?,?> owner, String source) {
+        return CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class,
+                owner, null, URIRequirementBuilder.fromUri(source).build());
     }
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<DeploymentNotificationBean> {
 
-        private final NewRelicClient client = new NewRelicClientImpl();
-
         public ListBoxModel doFillApiKeyItems(@AncestorInPath Job<?,?> owner) {
             if (owner == null || !owner.hasPermission(Item.CONFIGURE)) {
                 return new ListBoxModel();
             }
-            return new StandardUsernameListBoxModel().withAll(availableCredentials(owner, client.getApiEndpoint()));
+            return new StandardUsernameListBoxModel().withAll(availableCredentials(owner, getClient().getApiEndpoint()));
         }
 
         public FormValidation doCheckApiKey(@QueryParameter("apiKey") String apiKey) {
@@ -152,6 +148,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
             }
             ListBoxModel items = new ListBoxModel();
             if (apiKey != null && apiKey.length() > 0) {
+                NewRelicClient client = getClient();
                 UsernamePasswordCredentials credentials = getCredentials(owner, apiKey, client.getApiEndpoint());
                 if (credentials != null) {
                     for (Application application : client.getApplications(Secret.toString(credentials.getPassword()))) {
@@ -172,6 +169,11 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         @Override
         public String getDisplayName() {
             return "Deployment Notification";
+        }
+
+        // help testing
+        public NewRelicClient getClient() {
+            return new NewRelicClientImpl();
         }
     }
 }
