@@ -24,13 +24,11 @@
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <!-- Baseline Jenkins version you use to build and test the plugin. Users must have this version or newer to run. -->
-        <version>1.580.1</version>
-        <relativePath />
+        <version>2.16</version>
+        <relativePath/>
     </parent>
     <artifactId>newrelic-deployment-notifier</artifactId>
     <version>1.4-SNAPSHOT</version>
@@ -41,6 +39,7 @@
         Jenkins plugin to notify New Relic about deployments.
     </description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/New+Relic+Deployment+Notifier+Plugin</url>
+
     <licenses>
         <license>
             <name>MIT License</name>
@@ -60,11 +59,14 @@
         <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
         <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jenkins.version>1.642.3</jenkins.version>
+        <java.level>7</java.level>
+        <jenkins-test-harness.version>2.13</jenkins-test-harness.version>
     </properties>
 
     <repositories>
@@ -84,7 +86,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.3.5</version>
+            <version>4.5.2</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -95,6 +97,18 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
             <version>1.22</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>1.8.5</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
