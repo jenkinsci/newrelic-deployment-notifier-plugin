@@ -25,6 +25,7 @@ package org.jenkinsci.plugins.newrelicnotifier.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import hudson.ProxyConfiguration;
 import jenkins.model.Jenkins;
 import org.apache.http.*;
@@ -38,6 +39,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -60,7 +62,7 @@ public class NewRelicClientImpl implements NewRelicClient {
 
     private static final String API_URL = "https://api.newrelic.com";
 
-    private static final String DEPLOYMENT_ENDPOINT = "/deployments.xml";
+    private static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
 
     private static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
 
@@ -117,20 +119,24 @@ public class NewRelicClientImpl implements NewRelicClient {
                                     String changelog, String user) throws IOException {
         URI url = null;
         try {
-            url = new URI(API_URL + DEPLOYMENT_ENDPOINT);
+            String appUrl = "/v2/applications/" + applicationId;
+            url = new URI(API_URL + appUrl + DEPLOYMENT_ENDPOINT);
         } catch (URISyntaxException e) {
             // no need to handle this
         }
         HttpPost request = new HttpPost(url);
-        setHeaders(request, apiKey);
-        List<NameValuePair> params = new ArrayList<>();
-        params.add(new BasicNameValuePair("deployment[application_id]", applicationId));
-        params.add(new BasicNameValuePair("deployment[description]", description));
-        params.add(new BasicNameValuePair("deployment[revision]", revision));
-        params.add(new BasicNameValuePair("deployment[changelog]", changelog));
-        params.add(new BasicNameValuePair("deployment[user]", user));
-        UrlEncodedFormEntity entity = new UrlEncodedFormEntity(params);
+        request.setHeader("X-Api-Key", apiKey);
+        request.setHeader("Content-Type", "application/json");
+
+        JsonObject deployment = new JsonObject();
+        deployment.addProperty("revision", revision);
+        deployment.addProperty("changelog", changelog);
+        deployment.addProperty("description", description);
+        deployment.addProperty("user", user);
+
+        StringEntity entity = new StringEntity(deployment.toString());
         request.setEntity(entity);
+
         CloseableHttpClient client = getHttpClient(url);
         boolean result = false;
         try {
