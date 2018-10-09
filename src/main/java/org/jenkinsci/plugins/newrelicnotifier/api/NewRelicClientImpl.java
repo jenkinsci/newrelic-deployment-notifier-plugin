@@ -60,11 +60,11 @@ import java.util.List;
  */
 public class NewRelicClientImpl implements NewRelicClient {
 
-    private static final String API_URL = "https://api.newrelic.com";
+    public static final String API_URL = "https://api.newrelic.com";
 
-    private static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
+    public static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
 
-    private static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
+    public static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
 
     /**
      * {@inheritDoc}
