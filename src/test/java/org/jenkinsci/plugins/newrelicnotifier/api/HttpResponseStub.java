@@ -36,7 +36,7 @@ public class HttpResponseStub implements CloseableHttpResponse {
     private StatusLine statusLine;
 
     public HttpResponseStub(HttpRequest request) {
-        if ("https://api.newrelic.com/deployments.xml".equals(request.getRequestLine().getUri())) {
+        if (request.getRequestLine().getUri().endsWith(NewRelicClientImpl.DEPLOYMENT_ENDPOINT)) {
             this.statusLine = new BasicStatusLine(request.getProtocolVersion(), HttpStatus.SC_CREATED, "");
         } else {
             this.statusLine = new BasicStatusLine(request.getProtocolVersion(), HttpStatus.SC_OK, "");
