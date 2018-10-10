@@ -36,7 +36,7 @@ public interface NewRelicClient {
      *
      * @param apiKey New Relic API key
      * @return A list of applications available for supplied API key.
-     * @throws IOException
+     * @throws IOException when HttpClient is not able to be closed
      * @see <a href="https://docs.newrelic.com/docs/apm/apis/requirements/api-key">https://docs.newrelic.com/docs/apm/apis/requirements/api-key</a>
      */
     List<Application> getApplications(String apiKey) throws IOException;
@@ -51,7 +51,7 @@ public interface NewRelicClient {
      * @param changelog A list of changes for this deployment
      * @param user The name of the user/process that triggered this deployment
      * @return Returns true if notifications was successful
-     * @throws IOException
+     * @throws IOException when HttpClient is not able to be closed
      * @see <a href="https://docs.newrelic.com/docs/apm/apis/requirements/api-key">https://docs.newrelic.com/docs/apm/apis/requirements/api-key</a>
      */
     boolean sendNotification(
