@@ -28,6 +28,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import hudson.ProxyConfiguration;
 import jenkins.model.Jenkins;
+
+import org.apache.commons.io.IOUtils;
 import org.apache.http.*;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -35,7 +37,6 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -45,14 +46,15 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.ProxyAuthenticationStrategy;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
-import org.apache.http.message.BasicNameValuePair;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -115,7 +117,7 @@ public class NewRelicClientImpl implements NewRelicClient {
      * {@inheritDoc}
      */
     @Override
-    public boolean sendNotification(String apiKey, String applicationId, String description, String revision,
+    public void sendNotification(String apiKey, String applicationId, String description, String revision,
                                     String changelog, String user) throws IOException {
         URI url = null;
         try {
@@ -125,29 +127,42 @@ public class NewRelicClientImpl implements NewRelicClient {
             // no need to handle this
         }
         HttpPost request = new HttpPost(url);
-        request.setHeader("X-Api-Key", apiKey);
-        request.setHeader("Content-Type", "application/json");
+        setHeaders(request, apiKey);
 
         JsonObject deployment = new JsonObject();
         deployment.addProperty("revision", revision);
         deployment.addProperty("changelog", changelog);
         deployment.addProperty("description", description);
         deployment.addProperty("user", user);
+        JsonObject root = new JsonObject();
+        root.add("deployment", deployment);
 
-        StringEntity entity = new StringEntity(deployment.toString());
+        StringEntity entity = new StringEntity(root.toString());
         request.setEntity(entity);
+        entity.setContentType("application/json");
 
         CloseableHttpClient client = getHttpClient(url);
-        boolean result = false;
         try {
             CloseableHttpResponse response = client.execute(request);
-            result = HttpStatus.SC_CREATED == response.getStatusLine().getStatusCode();
+            StatusLine statusLine = response.getStatusLine();
+            if (HttpStatus.SC_CREATED != statusLine.getStatusCode()) {
+                String responseBody = null;
+                HttpEntity responseEntity = response.getEntity();
+                if (responseEntity != null) {
+                    try (InputStream content = responseEntity.getContent()) {
+                        responseBody = IOUtils.toString(content);
+                    }
+                }
+                throw new HttpResponseException(
+                    statusLine.getStatusCode(),
+                    statusLine.getReasonPhrase() + (responseBody != null ? "; Body = " + responseBody : "")
+                );
+            }
         } finally {
             if (client != null) {
                 client.close();
             }
         }
-        return result;
     }
 
     /**

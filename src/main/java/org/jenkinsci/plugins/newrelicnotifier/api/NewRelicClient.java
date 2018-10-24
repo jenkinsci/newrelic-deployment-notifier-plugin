@@ -50,11 +50,10 @@ public interface NewRelicClient {
      * @param revision The revision number from your source control system
      * @param changelog A list of changes for this deployment
      * @param user The name of the user/process that triggered this deployment
-     * @return Returns true if notifications was successful
-     * @throws IOException when HttpClient is not able to be closed
+     * @throws IOException when HttpClient is not able to be closed or unexpected status code received
      * @see <a href="https://docs.newrelic.com/docs/apm/apis/requirements/api-key">https://docs.newrelic.com/docs/apm/apis/requirements/api-key</a>
      */
-    boolean sendNotification(
+    void sendNotification(
             String apiKey,
             String applicationId,
             String description,
