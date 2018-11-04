@@ -86,15 +86,17 @@ public class NewRelicDeploymentNotifier extends Notifier {
                 listener.error("Invalid credentials for Application ID: %s", n.getApplicationId());
                 result = false;
             } else {
-                if (client.sendNotification(Secret.toString(credentials.getPassword()),
-                                            n.getApplicationId(),
-                                            n.getDescription(envVars),
-                                            n.getRevision(envVars),
-                                            n.getChangelog(envVars),
-                                            n.getUser(envVars))) {
+                try {
+                    client.sendNotification(Secret.toString(credentials.getPassword()),
+                        n.getApplicationId(),
+                        n.getDescription(envVars),
+                        n.getRevision(envVars),
+                        n.getChangelog(envVars),
+                        n.getUser(envVars));
                     listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
-                } else {
+                } catch (IOException e) {
                     listener.error("Failed to notify New Relic. Application ID: %s", n.getApplicationId());
+                    e.printStackTrace(listener.getLogger());
                     result = false;
                 }
             }
