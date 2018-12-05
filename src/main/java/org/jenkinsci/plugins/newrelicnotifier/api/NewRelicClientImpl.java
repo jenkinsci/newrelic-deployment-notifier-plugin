@@ -23,14 +23,26 @@
  */
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import hudson.ProxyConfiguration;
-import jenkins.model.Jenkins;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.SocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.http.*;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
@@ -40,6 +52,7 @@ import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -47,64 +60,55 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.ProxyAuthenticationStrategy;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.net.*;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
+import hudson.ProxyConfiguration;
+import jenkins.model.Jenkins;
 
 /**
  * REST client implementation for the New Relic API.
  */
 public class NewRelicClientImpl implements NewRelicClient {
-
-    public static final String API_URL = "https://api.newrelic.com";
+    
+    public static final String API_SCHEME = "https";
+    
+    public static final String API_HOST = "api.newrelic.com";
 
     public static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
 
     public static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
+    
+    public static final String PAGE_PARAMETER = "page";
+    
+    public static final int PAGE_SIZE = 200;
 
     /**
      * {@inheritDoc}
      */
     @Override
     public List<Application> getApplications(String apiKey) throws IOException {
-        List<Application> result = new ArrayList<>();
-        URI url = null;
-        try {
-            url = new URI(API_URL + APPLICATIONS_ENDPOINT);
-        } catch (URISyntaxException e) {
-            // no need to handle this
-        }
-        HttpGet request = new HttpGet(url);
+        List<Application> result = new LinkedList<>();
+
+        CloseableHttpClient client = getHttpClient(API_HOST);
+
+        HttpGet request = new HttpGet();
         setHeaders(request, apiKey);
-        CloseableHttpClient client = getHttpClient(url);
-        ResponseHandler<ApplicationList> rh = new ResponseHandler<ApplicationList>() {
-            @Override
-            public ApplicationList handleResponse(HttpResponse response) throws IOException {
-                StatusLine statusLine = response.getStatusLine();
-                if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
-                    throw new HttpResponseException(
-                            statusLine.getStatusCode(),
-                            statusLine.getReasonPhrase()
-                    );
-                }
-                HttpEntity entity = response.getEntity();
-                if (entity == null) {
-                    throw new ClientProtocolException("Response contains no content");
-                }
-                Gson gson = new GsonBuilder().create();
-                Reader reader = new InputStreamReader(entity.getContent(), Charset.forName("UTF-8"));
-                return gson.fromJson(reader, ApplicationList.class);
-            }
-        };
+        
+        ResponseHandler<ApplicationList> rh = getApplicationsHandler();
+        
         try {
-            ApplicationList response = client.execute(request, rh);
-            result.addAll(response.getApplications());
+            int page = 1;
+            ApplicationList response = null;
+            //NewRelic pages appservice with 200 objects max. 
+            //The other way is making always an extra request to check for an empty list. Or parse "Link" Response header
+            while(page == 1 || response.getApplications().size() == PAGE_SIZE) {
+                request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++));
+                response = client.execute(request, rh);
+                result.addAll(response.getApplications());
+            }
+            
         } finally {
             if (client != null) {
                 client.close();
@@ -119,13 +123,10 @@ public class NewRelicClientImpl implements NewRelicClient {
     @Override
     public void sendNotification(String apiKey, String applicationId, String description, String revision,
                                     String changelog, String user) throws IOException {
-        URI url = null;
-        try {
-            String appUrl = "/v2/applications/" + applicationId;
-            url = new URI(API_URL + appUrl + DEPLOYMENT_ENDPOINT);
-        } catch (URISyntaxException e) {
-            // no need to handle this
-        }
+        String appUrl = "/v2/applications/" + applicationId;
+        
+        URI url = getEndpointURI(appUrl + DEPLOYMENT_ENDPOINT, null);
+
         HttpPost request = new HttpPost(url);
         setHeaders(request, apiKey);
 
@@ -141,7 +142,7 @@ public class NewRelicClientImpl implements NewRelicClient {
         request.setEntity(entity);
         entity.setContentType("application/json");
 
-        CloseableHttpClient client = getHttpClient(url);
+        CloseableHttpClient client = getHttpClient(API_HOST);
         try {
             CloseableHttpResponse response = client.execute(request);
             StatusLine statusLine = response.getStatusLine();
@@ -170,17 +171,17 @@ public class NewRelicClientImpl implements NewRelicClient {
      */
     @Override
     public String getApiEndpoint() {
-        return API_URL;
+        return API_SCHEME + API_HOST;
     }
 
-    protected CloseableHttpClient getHttpClient(URI url) {
+    protected CloseableHttpClient getHttpClient(String host) {
         HttpClientBuilder builder = HttpClientBuilder.create();
         Jenkins instance = Jenkins.getInstance();
 
         if (instance != null) {
             ProxyConfiguration proxyConfig = instance.proxy;
             if (proxyConfig != null) {
-                Proxy proxy = proxyConfig.createProxy(url.getHost());
+                Proxy proxy = proxyConfig.createProxy(host);
                 if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
                     SocketAddress addr = proxy.address();
                     if (addr != null && addr instanceof InetSocketAddress) {
@@ -211,16 +212,49 @@ public class NewRelicClientImpl implements NewRelicClient {
         request.addHeader("X-Api-Key", apiKey);
         request.addHeader("Accept", "application/json");
     }
-
-    private class ApplicationList {
-        private List<Application> applications;
-
-        public ApplicationList(List<Application> applications) {
-            this.applications = applications;
+    
+    /**
+     * Retrieves the URI object for the given endpoint and page if the content wanted is paged.
+     * @param endpoint
+     * @param page
+     * @return
+     */
+    private URI getEndpointURI(String endpoint, Integer page) {
+        URIBuilder uriBuilder = new URIBuilder();
+        uriBuilder.setScheme(API_SCHEME);
+        uriBuilder.setHost(API_HOST);
+        uriBuilder.setPath(endpoint);
+        if (page != null)
+            uriBuilder.setParameter(PAGE_PARAMETER, page.toString());
+        
+        try {
+            return uriBuilder.build();
+        } catch (URISyntaxException e) {
+            // no need to handle this
+            return null;
         }
+        
+    }
 
-        public List<Application> getApplications() {
-            return applications;
-        }
+    private ResponseHandler<ApplicationList> getApplicationsHandler() {
+        return new ResponseHandler<ApplicationList>() {
+            @Override
+            public ApplicationList handleResponse(HttpResponse response) throws IOException {
+                StatusLine statusLine = response.getStatusLine();
+                if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+                    throw new HttpResponseException(
+                            statusLine.getStatusCode(),
+                            statusLine.getReasonPhrase()
+                    );
+                }
+                HttpEntity entity = response.getEntity();
+                if (entity == null) {
+                    throw new ClientProtocolException("Response contains no content");
+                }
+                Gson gson = new GsonBuilder().create();
+                Reader reader = new InputStreamReader(entity.getContent(), Charset.forName("UTF-8"));
+                return gson.fromJson(reader, ApplicationList.class);
+            }
+        };
     }
 }

@@ -25,14 +25,12 @@ package org.jenkinsci.plugins.newrelicnotifier.api;
 
 import org.apache.http.impl.client.CloseableHttpClient;
 
-import java.net.URI;
-
 public class NewRelicClientStub extends NewRelicClientImpl {
 
     private CloseableHttpClient httpClient;
 
     @Override
-    protected CloseableHttpClient getHttpClient(URI url) {
+    protected CloseableHttpClient getHttpClient(String host) {
         return httpClient;
     }
 
