@@ -31,8 +31,13 @@ Maintainers
 
 * Mads Mohr Christensen
 
+Changelog
+=========
+
+[Changelog](CHANGELOG.md)
+
 License
--------
+=======
 
 	(The MIT License)
 
