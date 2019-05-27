@@ -34,7 +34,7 @@
         <f:expandableTextbox />
     </f:entry>
     <f:entry title="${%Revision}" field="revision">
-        <f:textbox />
+        <f:textbox clazz="required" checkMessage="${%mandatory.revision}" />
     </f:entry>
     <f:entry title="${%Changelog}" field="changelog">
         <f:expandableTextbox />
