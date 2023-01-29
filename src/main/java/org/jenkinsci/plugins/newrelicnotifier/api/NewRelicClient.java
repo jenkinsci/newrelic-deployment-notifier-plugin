@@ -23,6 +23,8 @@
  */
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
+import hudson.model.TaskListener;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -59,7 +61,8 @@ public interface NewRelicClient {
             String description,
             String revision,
             String changelog,
-            String user
+            String user,
+            boolean european
     ) throws IOException;
 
     /**
@@ -68,4 +71,39 @@ public interface NewRelicClient {
      * @return The endpoint URL for the New Relic API
      */
     String getApiEndpoint();
+
+    String getApiEndpoint(boolean european);
+
+    /**
+     * Submit deployment notification
+     *
+     * @param apiKey New Relic API key
+     * @param changelog A list of changes for this deployment
+     * @param commit A commit hash for the deployment
+     * @param deepLink A deep link for the deployment
+     * @param deploymentType A deployment type for the deployment
+     * @param description Text annotation for the deployment
+     * @param entityGuid An entity GUID to identify the application for Nerdgraph deployment markers
+     * @param groupId A group id for the deployment
+     * @param timestamp A timestamp for the deployment
+     * @param user The name of the user/process that triggered this deployment
+     * @param version A version for the deployment
+     * @throws IOException when HttpClient is not able to be closed or unexpected status code received
+     * @see <a href="https://docs.newrelic.com/docs/apm/apis/requirements/api-key">https://docs.newrelic.com/docs/apm/apis/requirements/api-key</a>
+     */
+    void sendNotificationV2(
+            String apiKey,
+            String changelog,
+            String commit,
+            String deepLink,
+            String deploymentType,
+            String description,
+            String entityGuid,
+            String groupId,
+            String timestamp,
+            String user,
+            String version,
+            boolean european,
+            TaskListener listener
+    ) throws IOException;
 }

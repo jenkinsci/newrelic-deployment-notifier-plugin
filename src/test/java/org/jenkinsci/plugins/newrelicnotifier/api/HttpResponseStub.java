@@ -38,6 +38,8 @@ public class HttpResponseStub implements CloseableHttpResponse {
     public HttpResponseStub(HttpRequest request) {
         if (request.getRequestLine().getUri().endsWith(NewRelicClientImpl.DEPLOYMENT_ENDPOINT)) {
             this.statusLine = new BasicStatusLine(request.getProtocolVersion(), HttpStatus.SC_CREATED, "");
+        } else if (request.getRequestLine().getUri().contains(NewRelicClientImpl.NERD_GRAPH_ENDPOINT)) {
+            this.statusLine = new BasicStatusLine(request.getProtocolVersion(), HttpStatus.SC_OK, "");
         } else {
             this.statusLine = new BasicStatusLine(request.getProtocolVersion(), HttpStatus.SC_OK, "");
         }

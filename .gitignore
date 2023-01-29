@@ -3,3 +3,4 @@ target
 work
 .idea
 *.iml
+.DS_Store

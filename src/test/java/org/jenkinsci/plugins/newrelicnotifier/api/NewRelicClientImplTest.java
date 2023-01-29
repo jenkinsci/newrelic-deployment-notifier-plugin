@@ -1,19 +1,29 @@
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.net.HttpURLConnection;
 import java.util.LinkedList;
 import java.util.List;
 
+import hudson.model.TaskListener;
+import org.apache.http.HttpVersion;
+import org.apache.http.StatusLine;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import javax.annotation.Nonnull;
 
 
 public class NewRelicClientImplTest {
@@ -42,6 +52,61 @@ public class NewRelicClientImplTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testFailureScenario() throws IOException {
+        when(httpClient.execute(any()))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+                    StatusLine statusLine = new BasicStatusLine(HttpVersion.HTTP_1_1, HttpURLConnection.HTTP_OK, "OK");
+                    when(response.getStatusLine()).thenReturn(statusLine);
+                    return response;
+                });
+
+        try {
+            nrClient.sendNotificationV2("1",
+                    "applicationId",
+                    "description",
+                    "revision",
+                    "changelog",
+                    "commit",
+                    "deeplink",
+                    "user",
+                    "",
+                    "deploymentId",
+                    "deploymentType",
+                    true,
+                    new TaskListener() {
+                        @Nonnull
+                        @Override
+                        public PrintStream getLogger() {
+                            return System.out;
+                        }
+                    });
+            verify(httpClient, times(3)).execute(any());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void makePayloadTest() {
+        String result = nrClient.makePayload("","","","","","test","","","jenkins","1");
+        String expected = "{\"query\":\"mutation {changeTrackingCreateDeployment(deployment: {user: \\\"jenkins\\\", entityGuid: \\\"test\\\", version: \\\"1\\\"}) {deploymentId}}\"}";
+        assertEquals(expected, result);
+
+        result = nrClient.makePayload("","","","BLUE_GREEN","","test","","","jenkins","1");
+        expected = "{\"query\":\"mutation {changeTrackingCreateDeployment(deployment: {user: \\\"jenkins\\\", deploymentType: BLUE_GREEN, entityGuid: \\\"test\\\", version: \\\"1\\\"}) {deploymentId}}\"}";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void parsePayload() {
+        String result = nrClient.parseResponseBody("{\"data\":{\"changeTrackingCreateDeployment\":{\"deploymentId\":\"71c3f8f5-cecc-4299-aa0f-18f3fafa6313\",\"user\":\"justinlewis\"}}}");
+        String expected = "71c3f8f5-cecc-4299-aa0f-18f3fafa6313";
+        assertEquals(expected, result);
     }
     
     @SuppressWarnings("unchecked")
