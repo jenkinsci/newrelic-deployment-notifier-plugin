@@ -325,7 +325,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                     header.append(", ");
                 }
                 String value = e.getValue().toString();
-                if (e.getKey().equalsIgnoreCase("deploymentType")) {
+                if (e.getKey().equalsIgnoreCase("deploymentType") || e.getKey().equalsIgnoreCase("timestamp")) {
                     value = value.replace("\"", "");
                     header.append(e.getKey()).append(": ").append(value);
                 } else {
