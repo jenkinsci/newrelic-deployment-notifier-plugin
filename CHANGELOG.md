@@ -6,7 +6,7 @@ Changelog
 Release date: _2023-09-12_
 
 * [PR#14](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/14) - Adds incrementals support
-* [PR#15](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/15) - Adds incrementals support
+* [PR#15](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/15) - Migrate docs to GitHub
 
 ### 1.9
 
