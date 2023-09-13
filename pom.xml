@@ -38,7 +38,7 @@
     <description>
         Jenkins plugin to notify New Relic about deployments.
     </description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/New+Relic+Deployment+Notifier+Plugin</url>
+    <url>https://github.com/${gitHubRepo}</url>
 
     <licenses>
         <license>
