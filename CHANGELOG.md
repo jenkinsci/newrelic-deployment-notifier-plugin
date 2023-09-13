@@ -1,6 +1,33 @@
 Changelog
 =========
 
+### 1.10
+
+Release date: _2023-09-12_
+
+* [PR#14](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/14) - Adds incrementals support
+* [PR#15](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/15) - Adds incrementals support
+
+### 1.9
+
+Release date: _2023-09-12_
+
+* [PR#10](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/10) - Bump credentials from 2.3.19 to 2.6.1.1
+
+### 1.8
+
+Release date: _2021-06-20_
+
+* [PR#9](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/9) - Bump credentials from 1.22 to 2.3.19
+
+### 1.7
+
+Release date: _2021-06-05_
+
+* [JENKINS-57705](https://issues.jenkins.io/browse/JENKINS-57705) - Deployment field "revision" is mandatory
+* [PR#7](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/7) - Use HTTPS URLs in pom.xml
+* [PR#8](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/8) - Bump httpclient from 4.5.2 to 4.5.13
+
 ### 1.6
 
 Release date: _2019-05-27_

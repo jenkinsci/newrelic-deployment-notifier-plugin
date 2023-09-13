@@ -3,41 +3,54 @@ Jenkins New Relic Deployment Notifier Plugin
 
 Jenkins plugin to notify New Relic about [deployments][].
 
-Read more: [https://wiki.jenkins-ci.org/display/JENKINS/New+Relic+Deployment+Notifier+Plugin](https://wiki.jenkins-ci.org/display/JENKINS/New+Relic+Deployment+Notifier+Plugin)
-
-Requirements
-============
+## Requirements
 
 * An account at **[New Relic][]**
 * API access enabled by creating an **[API key][]**
 * **Jenkins 1.580.1** or newer
 
-Usage
-=====
+## Usage
 
-Use the New Relic Deployment Notifier by adding it as a _Post Step_ in you Jenkins build job configuration.
+Use the New Relic Deployment Notifier by adding it as a *Post Step* in
+you Jenkins build job configuration.
 
-1. In your Jenkins job configuration go to the *Post-build Actions* section, click on *Add post-build action* and select *New Relic Deployment Notifications*
-2. Create an username/password credential for the API key. Enter the key as the password.
-3. Select an application in the dropdown list.
-4. Add any of the optional values: _description_, _revision_, _changelog_ or _user_
+1.  In your Jenkins job configuration go to the **Post-build Actions**
+    section, click on **Add post-build action** and select **New Relic
+    Deployment Notifications**
+    ![](docs/images/postbuild.png)
+2.  Create a username/password credential for the API key. Enter the
+    key as the password.
+    ![](docs/images/credential.png)
+3.  Select an application in the dropdown list.
+    ![](docs/images/validcredential.png)
+4.  Add any of the optional values: *description*, *revision*,
+    *changelog* or *user*
+    ![](docs/images/optional.png)
 
-If you have configured everything correctly, Jenkins will notify you New Relic account of subsequent deployments.
+If you have configured everything correctly, Jenkins will notify you New
+Relic account of subsequent deployments.
 
 It is possible to configure several applications to be notified.
+![](docs/images/addnotification.png)
 
-Maintainers
-===========
+### Getting user as an environment variable
 
+Install the [Build User Vars
+Plugin](https://wiki.jenkins.io/display/JENKINS/Build+User+Vars+Plugin)
+and use any of the supported environment variables.
+![](docs/images/user.png)
+
+## Maintainers
+
+* Jonathan Gordon
+* Justin Lewis
 * Mads Mohr Christensen
 
-Changelog
-=========
+## Changelog
 
 [Changelog](CHANGELOG.md)
 
-License
-=======
+## License
 
 	(The MIT License)
 
@@ -62,6 +75,6 @@ License
 	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-[deployments]: https://docs.newrelic.com/docs/apm/applications-menu/events/deployments-dashboard
+[deployments]: https://docs.newrelic.com/docs/change-tracking/change-tracking-view-analyze/
 [New Relic]: http://newrelic.com/
-[API key]: https://docs.newrelic.com/docs/apm/apis/requirements/api-key
+[API key]: https://docs.newrelic.com/docs/apis/intro-apis/new-relic-api-keys/
