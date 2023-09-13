@@ -26,27 +26,28 @@ package org.jenkinsci.plugins.newrelicnotifier;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import hudson.EnvVars;
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
-import hudson.model.Result;
+import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.util.Secret;
+import jenkins.tasks.SimpleBuildStep;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClient;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
 
 /**
  * Notifies a New Relic instance about deployment.
  */
-public class NewRelicDeploymentNotifier extends Notifier {
+public class NewRelicDeploymentNotifier extends Notifier implements SimpleBuildStep {
 
     private final List<DeploymentNotificationBean> notifications;
 
@@ -81,19 +82,36 @@ public class NewRelicDeploymentNotifier extends Notifier {
         NewRelicClient client = getClient();
 
         for (DeploymentNotificationBean n : getNotifications()) {
-            UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint());
+            UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(build.getProject(), n.getApiKey(), client.getApiEndpoint(n.getEuropean()));
             if (credentials == null) {
                 listener.error("Invalid credentials for Application ID: %s", n.getApplicationId());
                 result = false;
             } else {
                 try {
-                    client.sendNotification(Secret.toString(credentials.getPassword()),
-                        n.getApplicationId(),
-                        n.getDescription(envVars),
-                        n.getRevision(envVars),
-                        n.getChangelog(envVars),
-                        n.getUser(envVars));
-                    listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
+                    if(StringUtils.isEmpty(n.getEntityGuid(envVars))) {
+                        client.sendNotification(Secret.toString(credentials.getPassword()),
+                                n.getApplicationId(),
+                                n.getDescription(envVars),
+                                n.getRevision(envVars),
+                                n.getChangelog(envVars),
+                                n.getUser(envVars),
+                                n.getEuropean(envVars));
+                        listener.getLogger().println("Notified New Relic. Application ID: " + n.getApplicationId());
+                    } else {
+                        client.sendNotificationV2(Secret.toString(credentials.getPassword()),
+                                n.getChangelog(envVars),
+                                n.getCommit(envVars),
+                                n.getDeeplink(envVars),
+                                n.getDeploymentType(envVars),
+                                n.getDescription(envVars),
+                                n.getEntityGuid(envVars),
+                                n.getGroupId(envVars),
+                                n.getTimestamp(envVars),
+                                n.getUser(envVars),
+                                n.getVersion(envVars),
+                                n.getEuropean(envVars),
+                                listener);
+                    }
                 } catch (IOException e) {
                     listener.error("Failed to notify New Relic. Application ID: %s", n.getApplicationId());
                     e.printStackTrace(listener.getLogger());
@@ -117,6 +135,37 @@ public class NewRelicDeploymentNotifier extends Notifier {
     @Override
     public DescriptorImpl getDescriptor() {
         return (DescriptorImpl) super.getDescriptor();
+    }
+
+    @Override
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
+        EnvVars envVars = run.getEnvironment(taskListener);
+        NewRelicClient client = getClient();
+        for (DeploymentNotificationBean n : getNotifications()) {
+            UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(run.getParent(), n.getApiKey(), client.getApiEndpoint(n.getEuropean(envVars)));
+            if (credentials == null) {
+                taskListener.error("Invalid credentials for Entity GUID: %s", n.getEntityGuid(envVars));
+                continue;
+            }
+            try {
+                client.sendNotificationV2(Secret.toString(credentials.getPassword()),
+                        n.getChangelog(envVars),
+                        n.getCommit(envVars),
+                        n.getDeeplink(envVars),
+                        n.getDeploymentType(envVars),
+                        n.getDescription(envVars),
+                        n.getEntityGuid(envVars),
+                        n.getGroupId(envVars),
+                        n.getTimestamp(envVars),
+                        n.getUser(envVars),
+                        n.getVersion(envVars),
+                        n.getEuropean(envVars),
+                        taskListener);
+            } catch (IOException e) {
+                taskListener.error("Failed to notify New Relic. Entity GUID: %s", n.getEntityGuid(envVars));
+                e.printStackTrace(taskListener.getLogger());
+            }
+        }
     }
 
     @Extension

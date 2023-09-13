@@ -60,17 +60,35 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
     private final String description;
     private final String revision;
     private final String changelog;
+    private final String commit;
+    private final String deeplink;
     private final String user;
+    private final String entityGuid;
+    private final String deploymentId;
+    private final String deploymentType;
+    private final String groupId;
+    private final String timestamp;
+    private final String version;
+    private final boolean european;
 
     @DataBoundConstructor
-    public DeploymentNotificationBean(String apiKey, String applicationId, String description, String revision, String changelog, String user) {
+    public DeploymentNotificationBean(String apiKey, String applicationId, String description, String revision, String changelog, String commit, String deeplink, String user, String entityGuid, String deploymentId, String deploymentType, String groupId, String timestamp, String version, boolean european) {
         super();
         this.apiKey = apiKey;
         this.applicationId = applicationId;
         this.description = description;
         this.revision = revision;
         this.changelog = changelog;
+        this.commit = commit;
+        this.deploymentId = deploymentId;
+        this.deeplink = deeplink;
         this.user = user;
+        this.entityGuid = entityGuid;
+        this.deploymentType = deploymentType;
+        this.groupId = groupId;
+        this.timestamp = timestamp;
+        this.version = version;
+        this.european = european;
     }
 
     public String getApiKey() {
@@ -95,6 +113,67 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
 
     public String getUser() {
         return user;
+    }
+
+    public String getCommit() { return commit; }
+
+    public String getDeeplink() {
+        return deeplink;
+    }
+
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    public String getTimestamp(EnvVars env) {
+        return env.expand(getTimestamp());
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public String getVersion(EnvVars env) {
+        return env.expand(getVersion());
+    }
+
+    public String getGroupId() {
+        return groupId;
+    }
+
+    public String getGroupId(EnvVars env) {
+        return env.expand(getGroupId());
+    }
+
+    public String getDeploymentId() {
+        return deploymentId;
+    }
+
+    public String getEntityGuid() {
+        return entityGuid;
+    }
+
+    public String getDeploymentType() {
+        return this.deploymentType;
+    }
+    public boolean getEuropean() {
+        return this.european;
+    }
+
+    public String getDeploymentType(EnvVars env) {
+        return env.expand(getDeploymentType());
+    }
+
+    public boolean getEuropean(EnvVars env) {
+        return Boolean.valueOf(env.expand(Boolean.toString(getEuropean())));
+    }
+
+    public String getCommit(EnvVars env) { return env.expand(getCommit()); }
+    public String getDeploymentId(EnvVars env) { return env.expand(getDeploymentId()); }
+    public String getDeeplink(EnvVars env) { return env.expand(getDeeplink()); }
+
+    public String getEntityGuid(EnvVars env) {
+        return env.expand(getEntityGuid());
     }
 
     public String getDescription(EnvVars env) {

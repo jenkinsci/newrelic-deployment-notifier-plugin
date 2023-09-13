@@ -92,7 +92,53 @@ public class NewRelicDeploymentNotifierTest {
 
         List<DeploymentNotificationBean> notifications = new ArrayList<>();
         DeploymentNotificationBean notificationBean = new DeploymentNotificationBean(
-                credentialsId, "applicationId", "description", "revision", "changelog", "user"
+                credentialsId,
+                "applicationId",
+                "description",
+                "revision",
+                "changelog",
+                "commit",
+                "deeplink",
+                "user",
+                "",
+                "deploymentId",
+                "deploymentType",
+                "groupId",
+                "timestamp",
+                "version",
+                false
+        );
+        notifications.add(notificationBean);
+
+        NewRelicDeploymentNotifier notifier = spy(new NewRelicDeploymentNotifier(notifications));
+        when(notifier.getClient()).thenReturn(client);
+
+        p.getPublishersList().add(notifier);
+        FreeStyleBuild b = p.scheduleBuild2(0).get();
+        jenkinsRule.assertBuildStatus(Result.SUCCESS, b);
+    }
+
+    @Test
+    public void freestyleProjectNotifier2() throws Exception {
+        FreeStyleProject p = jenkinsRule.createFreeStyleProject();
+
+        List<DeploymentNotificationBean> notifications = new ArrayList<>();
+        DeploymentNotificationBean notificationBean = new DeploymentNotificationBean(
+                credentialsId,
+                "applicationId",
+                "description",
+                "revision",
+                "changelog",
+                "commit",
+                "deeplink",
+                "user",
+                "entityGuid",
+                "deploymentId",
+                "deploymentType",
+                "groupId",
+                "timestamp",
+                "version",
+                false
         );
         notifications.add(notificationBean);
 

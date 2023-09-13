@@ -39,6 +39,40 @@
     <f:entry title="${%Changelog}" field="changelog">
         <f:expandableTextbox />
     </f:entry>
+    <f:entry title="${%Commit}" field="commit">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%Deeplink}" field="deeplink">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%DeploymentId}" field="deploymentId">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%EntityGuid}" field="entityGuid">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%EU}" field="european">
+        <f:checkbox />
+    </f:entry>
+    <f:entry title="${%DeploymentType}" field="deploymentType">
+        <select name="deploymentType" >
+            <option>BASIC</option>
+            <option>BLUE_GREEN</option>
+            <option>CANARY</option>
+            <option>OTHER</option>
+            <option>ROLLING</option>
+            <option>SHADOW</option>
+        </select>
+    </f:entry>
+    <f:entry title="${%GroupId}" field="groupId">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%Timestamp}" field="timestamp">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%Version}" field="version">
+        <f:textbox />
+    </f:entry>
     <f:entry title="${%User}" field="user">
         <f:textbox />
     </f:entry>

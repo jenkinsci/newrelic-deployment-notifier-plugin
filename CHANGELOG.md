@@ -1,5 +1,12 @@
 Changelog
 =========
+### 1.11
+
+Release date: _2023-09-13_
+
+* [PR#12](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/12) - Update plugin with new Change Tracking endpoint
+* [PR#13](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/13) - Add Plugin Development Team to CODEOWNERS
+* [PR#11](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/11) - Bump gson from 2.3.1 to 2.8.9
 
 ### 1.10
 

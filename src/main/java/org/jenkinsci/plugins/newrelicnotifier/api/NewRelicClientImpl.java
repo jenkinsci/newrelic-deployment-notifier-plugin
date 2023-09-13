@@ -36,6 +36,7 @@ import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.List;
 
+import hudson.model.TaskListener;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -75,12 +76,17 @@ public class NewRelicClientImpl implements NewRelicClient {
     public static final String API_SCHEME = "https";
     
     public static final String API_HOST = "api.newrelic.com";
+    public static final String EUROPEAN_API_HOST = "api.eu.newrelic.com";
+
+    public static final String NERD_GRAPH_ENDPOINT = "/graphql";
 
     public static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
 
     public static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
     
     public static final String PAGE_PARAMETER = "page";
+    public static final String GRAPHQL_URL = API_HOST;
+    public static final String EUROPEAN_GRAPHQL_URL = EUROPEAN_API_HOST;
     
     public static final int PAGE_SIZE = 200;
 
@@ -104,7 +110,7 @@ public class NewRelicClientImpl implements NewRelicClient {
             //NewRelic pages appservice with 200 objects max. 
             //The other way is making always an extra request to check for an empty list. Or parse "Link" Response header
             while(page == 1 || response.getApplications().size() == PAGE_SIZE) {
-                request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++));
+                request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++, API_HOST));
                 response = client.execute(request, rh);
                 result.addAll(response.getApplications());
             }
@@ -122,10 +128,10 @@ public class NewRelicClientImpl implements NewRelicClient {
      */
     @Override
     public void sendNotification(String apiKey, String applicationId, String description, String revision,
-                                    String changelog, String user) throws IOException {
+                                    String changelog, String user, boolean european) throws IOException {
         String appUrl = "/v2/applications/" + applicationId;
         
-        URI url = getEndpointURI(appUrl + DEPLOYMENT_ENDPOINT, null);
+        URI url = getEndpointURI(appUrl + DEPLOYMENT_ENDPOINT, null, API_HOST);
 
         HttpPost request = new HttpPost(url);
         setHeaders(request, apiKey);
@@ -170,8 +176,172 @@ public class NewRelicClientImpl implements NewRelicClient {
      * {@inheritDoc}
      */
     @Override
+    public void sendNotificationV2(
+            String apiKey,
+            String changelog,
+            String commit,
+            String deepLink,
+            String deploymentType,
+            String description,
+            String entityGuid,
+            String groupId,
+            String timestamp,
+            String user,
+            String version,
+            boolean european,
+            TaskListener listener
+    ) throws IOException {
+        URI url;
+        CloseableHttpClient client;
+        url = getEndpointURI(NERD_GRAPH_ENDPOINT, null, GRAPHQL_URL);
+        client = getHttpClient(GRAPHQL_URL);
+        if (european) {
+            client = getHttpClient(EUROPEAN_GRAPHQL_URL);
+            url = getEndpointURI(NERD_GRAPH_ENDPOINT, null, EUROPEAN_GRAPHQL_URL);
+        }
+
+        HttpPost request = new HttpPost(url);
+        setHeaders(request, apiKey);
+
+        String strPayload = makePayload(
+                changelog,
+                commit,
+                deepLink,
+                deploymentType,
+                description,
+                entityGuid,
+                groupId,
+                timestamp,
+                user,
+                version
+        );
+
+        StringEntity entity = new StringEntity(strPayload);
+        request.setEntity(entity);
+        entity.setContentType("application/json");
+
+        try {
+            int tries = 0;
+            while (tries++ < 3) {
+                CloseableHttpResponse response = client.execute(request);
+                StatusLine statusLine = response.getStatusLine();
+                if (HttpStatus.SC_OK != statusLine.getStatusCode()) {
+                    String responseBody = null;
+                    HttpEntity responseEntity = response.getEntity();
+                    if (responseEntity != null) {
+                        try (InputStream content = responseEntity.getContent()) {
+                            responseBody = IOUtils.toString(content);
+                        }
+                    }
+                    responseBody += ", requestBody: " + strPayload;
+                    throw new HttpResponseException(
+                            statusLine.getStatusCode(),
+                            statusLine.getReasonPhrase() + (responseBody != null ? "; Body = " + responseBody : "")
+                    );
+                } else {
+                    String responseBody = null;
+                    HttpEntity responseEntity = response.getEntity();
+                    if (responseEntity != null) {
+                        try (InputStream content = responseEntity.getContent()) {
+                            responseBody = IOUtils.toString(content);
+                        }
+                    }
+                    responseBody += ", requestBody: " + strPayload;
+                    String deploymentId = parseResponseBody(responseBody);
+                    if (deploymentId != null && deploymentId.length() == 36) {
+                        listener.getLogger().println("Notified New Relic. New Relic Deployment ID: " + deploymentId);
+                        break;
+                    } else {
+                        if (tries == 3) {
+                            listener.getLogger().println("Unable to reach New Relic to record the Deployment Id");
+                        } else {
+                            listener.getLogger().println("Retrying calling New Relic API...");
+                        }
+                    }
+                }
+            }
+        } finally {
+            if (client != null) {
+                client.close();
+            }
+        }
+
+    }
+
+    public String parseResponseBody(String str) {
+        if (str == null || !str.contains("deploymentId\":\"")) {
+            return null;
+        }
+        int start = str.indexOf("deploymentId\":\"");
+        String subString = str.substring(start + "deploymentId\":\"".length());
+        return subString.substring(0, 36);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getApiEndpoint() {
         return API_SCHEME + API_HOST;
+    }
+
+    @Override
+    public String getApiEndpoint(boolean european) {
+        if (european)
+            return API_SCHEME + EUROPEAN_API_HOST;
+        return getApiEndpoint();
+    }
+
+    public String makePayload(
+            String changelog,
+            String commit,
+            String deepLink,
+            String deploymentType,
+            String description,
+            String entityGuid,
+            String groupId,
+            String timestamp,
+            String user,
+            String version) {
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("commit", commit);
+        payload.addProperty("changelog", changelog);
+        payload.addProperty("description", description);
+        payload.addProperty("user", user);
+        payload.addProperty("deepLink", deepLink);
+        payload.addProperty("deploymentType", deploymentType);
+        payload.addProperty("entityGuid", entityGuid);
+        payload.addProperty("user", user);
+        payload.addProperty("version", version);
+        payload.addProperty("groupId", groupId);
+        payload.addProperty("timestamp", timestamp);
+
+        StringBuilder header = new StringBuilder();
+
+        payload.entrySet().forEach(e -> {
+            if (e.getValue() != null && e.getValue().toString().trim().length() > 2) {
+                if (header.length() > 0) {
+                    header.append(", ");
+                }
+                String value = e.getValue().toString();
+                if (e.getKey().equalsIgnoreCase("deploymentType") || e.getKey().equalsIgnoreCase("timestamp")) {
+                    value = value.replace("\"", "");
+                    header.append(e.getKey()).append(": ").append(value);
+                } else {
+                    value = value.substring(0, value.length() - 1);
+                    value += "\\\"";
+                    header.append(e.getKey()).append(": \\").append(value);
+                }
+            }
+        });
+
+        return "{\"query\":"
+                + "\"mutation {changeTrackingCreateDeployment(deployment: {"
+                + header
+                + "}) {"
+                + "deploymentId"
+                + "}}\"}";
     }
 
     protected CloseableHttpClient getHttpClient(String host) {
@@ -211,6 +381,7 @@ public class NewRelicClientImpl implements NewRelicClient {
     private void setHeaders(HttpRequest request, String apiKey) {
         request.addHeader("X-Api-Key", apiKey);
         request.addHeader("Accept", "application/json");
+        request.addHeader("NewRelic-Requesting-Services", "newrelic-jenkins-plugin");
     }
     
     /**
@@ -219,10 +390,10 @@ public class NewRelicClientImpl implements NewRelicClient {
      * @param page
      * @return
      */
-    private URI getEndpointURI(String endpoint, Integer page) {
+    private URI getEndpointURI(String endpoint, Integer page, String host) {
         URIBuilder uriBuilder = new URIBuilder();
         uriBuilder.setScheme(API_SCHEME);
-        uriBuilder.setHost(API_HOST);
+        uriBuilder.setHost(host);
         uriBuilder.setPath(endpoint);
         if (page != null)
             uriBuilder.setParameter(PAGE_PARAMETER, page.toString());
