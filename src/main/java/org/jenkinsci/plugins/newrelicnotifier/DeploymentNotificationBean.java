@@ -221,12 +221,12 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillApplicationIdItems(@AncestorInPath Job<?,?> owner, @QueryParameter("apiKey") final String apiKey) throws IOException {
+        public ListBoxModel doFillApplicationIdItems(@AncestorInPath Job<?, ?> owner, @QueryParameter("apiKey") final String apiKey, @QueryParameter("european") final Boolean european) throws IOException {
             if (owner == null || !owner.hasPermission(Item.CONFIGURE)) {
                 return new ListBoxModel();
             }
             ListBoxModel items = new ListBoxModel();
-            if (apiKey != null && apiKey.length() > 0) {
+            if (apiKey != null && !apiKey.isEmpty()) {
                 NewRelicClient client = getClient();
                 UsernamePasswordCredentials credentials = getCredentials(owner, apiKey, client.getApiEndpoint());
                 if (credentials != null) {
