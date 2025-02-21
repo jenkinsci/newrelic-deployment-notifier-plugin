@@ -46,7 +46,7 @@ public class NewRelicClientImplTest {
             .thenAnswer(getAnswerForAppSize(expectedSize));
 
         try {
-            List<Application> apps = nrClient.getApplications("someapikey");
+            List<Application> apps = nrClient.getApplications("someapikey", false);
             assertTrue(apps.size() == expectedSize);
             verify(httpClient, times(2)).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
         } catch (IOException e) {
@@ -117,7 +117,7 @@ public class NewRelicClientImplTest {
             .thenAnswer(getAnswerForAppSize(expectedSize));
 
         try {
-            List<Application> apps = nrClient.getApplications("someapikey");
+            List<Application> apps = nrClient.getApplications("someapikey", false);
             assertTrue(apps.size() == expectedSize);
             verify(httpClient).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
         } catch (IOException e) {

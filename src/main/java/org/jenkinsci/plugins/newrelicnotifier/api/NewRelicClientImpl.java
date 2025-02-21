@@ -156,7 +156,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                 HttpEntity responseEntity = response.getEntity();
                 if (responseEntity != null) {
                     try (InputStream content = responseEntity.getContent()) {
-                        responseBody = IOUtils.toString(content);
+                        responseBody = IOUtils.toString(content, Charset.defaultCharset());
                     }
                 }
                 throw new HttpResponseException(
@@ -225,7 +225,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                     HttpEntity responseEntity = response.getEntity();
                     if (responseEntity != null) {
                         try (InputStream content = responseEntity.getContent()) {
-                            responseBody = IOUtils.toString(content);
+                            responseBody = IOUtils.toString(content, Charset.defaultCharset());
                         }
                     }
                     responseBody += ", requestBody: " + strPayload;
@@ -238,7 +238,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                     HttpEntity responseEntity = response.getEntity();
                     if (responseEntity != null) {
                         try (InputStream content = responseEntity.getContent()) {
-                            responseBody = IOUtils.toString(content);
+                            responseBody = IOUtils.toString(content, Charset.defaultCharset());
                         }
                     }
                     responseBody += ", requestBody: " + strPayload;
@@ -341,7 +341,7 @@ public class NewRelicClientImpl implements NewRelicClient {
 
     protected CloseableHttpClient getHttpClient(String host) {
         HttpClientBuilder builder = HttpClientBuilder.create();
-        Jenkins instance = Jenkins.getInstance();
+        Jenkins instance = Jenkins.getInstanceOrNull();
 
         if (instance != null) {
             ProxyConfiguration proxyConfig = instance.proxy;
@@ -349,7 +349,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                 Proxy proxy = proxyConfig.createProxy(host);
                 if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
                     SocketAddress addr = proxy.address();
-                    if (addr != null && addr instanceof InetSocketAddress) {
+                    if (addr instanceof InetSocketAddress) {
                         InetSocketAddress proxyAddr = (InetSocketAddress) addr;
                         HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
                         DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
