@@ -94,10 +94,10 @@ public class NewRelicClientImpl implements NewRelicClient {
      * {@inheritDoc}
      */
     @Override
-    public List<Application> getApplications(String apiKey) throws IOException {
+    public List<Application> getApplications(String apiKey, boolean european) throws IOException {
         List<Application> result = new LinkedList<>();
 
-        CloseableHttpClient client = getHttpClient(API_HOST);
+        CloseableHttpClient client = getHttpClient(european ? EUROPEAN_API_HOST : API_HOST);
 
         HttpGet request = new HttpGet();
         setHeaders(request, apiKey);
@@ -110,7 +110,7 @@ public class NewRelicClientImpl implements NewRelicClient {
             //NewRelic pages appservice with 200 objects max. 
             //The other way is making always an extra request to check for an empty list. Or parse "Link" Response header
             while(page == 1 || response.getApplications().size() == PAGE_SIZE) {
-                request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++, API_HOST));
+                request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++, european ? EUROPEAN_API_HOST : API_HOST));
                 response = client.execute(request, rh);
                 result.addAll(response.getApplications());
             }
@@ -131,7 +131,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                                     String changelog, String user, boolean european) throws IOException {
         String appUrl = "/v2/applications/" + applicationId;
         
-        URI url = getEndpointURI(appUrl + DEPLOYMENT_ENDPOINT, null, API_HOST);
+        URI url = getEndpointURI(appUrl + DEPLOYMENT_ENDPOINT, null, european ? EUROPEAN_API_HOST : API_HOST);
 
         HttpPost request = new HttpPost(url);
         setHeaders(request, apiKey);
@@ -148,8 +148,7 @@ public class NewRelicClientImpl implements NewRelicClient {
         request.setEntity(entity);
         entity.setContentType("application/json");
 
-        CloseableHttpClient client = getHttpClient(API_HOST);
-        try {
+        try (CloseableHttpClient client = getHttpClient(european ? EUROPEAN_API_HOST : API_HOST)) {
             CloseableHttpResponse response = client.execute(request);
             StatusLine statusLine = response.getStatusLine();
             if (HttpStatus.SC_CREATED != statusLine.getStatusCode()) {
@@ -161,13 +160,9 @@ public class NewRelicClientImpl implements NewRelicClient {
                     }
                 }
                 throw new HttpResponseException(
-                    statusLine.getStatusCode(),
-                    statusLine.getReasonPhrase() + (responseBody != null ? "; Body = " + responseBody : "")
+                        statusLine.getStatusCode(),
+                        statusLine.getReasonPhrase() + (responseBody != null ? "; Body = " + responseBody : "")
                 );
-            }
-        } finally {
-            if (client != null) {
-                client.close();
             }
         }
     }
@@ -193,8 +188,8 @@ public class NewRelicClientImpl implements NewRelicClient {
     ) throws IOException {
         URI url;
         CloseableHttpClient client;
-        url = getEndpointURI(NERD_GRAPH_ENDPOINT, null, GRAPHQL_URL);
-        client = getHttpClient(GRAPHQL_URL);
+        url = getEndpointURI(NERD_GRAPH_ENDPOINT, null, european ? EUROPEAN_GRAPHQL_URL : GRAPHQL_URL);
+        client = getHttpClient(european ? EUROPEAN_GRAPHQL_URL : GRAPHQL_URL);
         if (european) {
             client = getHttpClient(EUROPEAN_GRAPHQL_URL);
             url = getEndpointURI(NERD_GRAPH_ENDPOINT, null, EUROPEAN_GRAPHQL_URL);

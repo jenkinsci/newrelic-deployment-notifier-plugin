@@ -36,12 +36,13 @@ public interface NewRelicClient {
     /**
      * Get the list of applications available to record deployment notifications for.
      *
-     * @param apiKey New Relic API key
+     * @param apiKey New Relic User API key
+     * @param european Is the User API key created under a European account
      * @return A list of applications available for supplied API key.
      * @throws IOException when HttpClient is not able to be closed
      * @see <a href="https://docs.newrelic.com/docs/apm/apis/requirements/api-key">https://docs.newrelic.com/docs/apm/apis/requirements/api-key</a>
      */
-    List<Application> getApplications(String apiKey) throws IOException;
+    List<Application> getApplications(String apiKey, boolean european) throws IOException;
 
     /**
      * Submit deployment notification
