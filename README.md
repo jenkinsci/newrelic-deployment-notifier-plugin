@@ -50,6 +50,28 @@ and use any of the supported environment variables.
 
 [Changelog](CHANGELOG.md)
 
+## Development
+
+### Project Set Up
+
+For IntelliJ IDEA users, the following steps are recommended:
+
+1. Install the Jenkins Development Support Plugin.
+2. Open the project directory in IntelliJ IDEA and import as a Maven project. 
+3. Go to **File** -\> **Project Structure** -\> **Project** and set the
+    **Project SDK** to the JDK you want to use. Right now we're using JDK 8.
+
+### Running Locally
+1. Create a Maven Run Configuration with "hpi:run" as the Run command.
+2. Start the configuration in Run or Debug mode.
+3. The plugin will be available at
+    [http://localhost:8080/jenkins/](http://localhost:8080/jenkins/). 
+4. Create a new Freestyle Project and name it whatever you want.
+5. Configure the job and click "Add post-build action" and select "New Relic Deployment Notifications".
+6. Add User API Keys as Global Credentials with a Kind of "Username with password" and add the API key as the password. It's helpful to label the credential with the New Relic account id and the region (US or EU).
+7. Configure all the fields for the job and save.
+8. Click "Build Now" to run the job and check its status. If it succeeds you should be able to then see the deployment in New Relic under the selected application's Change Tracking tab.
+
 ## License
 
 	(The MIT License)
