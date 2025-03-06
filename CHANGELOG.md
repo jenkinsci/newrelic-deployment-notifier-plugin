@@ -1,5 +1,11 @@
 Changelog
 =========
+### 1.12
+
+Release date: _2025-02-24_
+
+* [PR#19](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/19) - Fix European support
+
 ### 1.11
 
 Release date: _2023-09-13_

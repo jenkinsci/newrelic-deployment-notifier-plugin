@@ -221,16 +221,27 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillApplicationIdItems(@AncestorInPath Job<?,?> owner, @QueryParameter("apiKey") final String apiKey) throws IOException {
+        public ListBoxModel doFillApplicationIdItems(@AncestorInPath Job<?, ?> owner, @QueryParameter("apiKey") final String apiKey, @QueryParameter("european") final Boolean european) throws IOException {
             if (owner == null || !owner.hasPermission(Item.CONFIGURE)) {
                 return new ListBoxModel();
             }
             ListBoxModel items = new ListBoxModel();
-            if (apiKey != null && apiKey.length() > 0) {
+            if (apiKey != null && !apiKey.isEmpty()) {
                 NewRelicClient client = getClient();
                 UsernamePasswordCredentials credentials = getCredentials(owner, apiKey, client.getApiEndpoint());
                 if (credentials != null) {
-                    for (Application application : client.getApplications(Secret.toString(credentials.getPassword()))) {
+                    List<Application> applications;
+                    try {
+                        applications = client.getApplications(Secret.toString(credentials.getPassword()), european);
+                    } catch (IOException e) {
+                        if (e.getMessage().contains("401") || e.getMessage().contains("403")) {
+                            items.add("Authentication/Authorization Error", "The API Key is either not recognized or not authorized. Please be sure to use a valid User API Key and confirm you have selected the correct region.");
+                            return items;
+                        }
+                        items.add("Application load failure", String.format("An error occurred while fetching applications: '%s' If the problem persists, please contact support.", e.getMessage()));
+                        return items;
+                    }
+                    for (Application application : applications) {
                         items.add(application.getName(), application.getId());
                     }
                 }
@@ -239,10 +250,18 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         }
 
         public FormValidation doCheckApplicationId(@QueryParameter("applicationId") String applicationId) {
-            if (applicationId == null || applicationId.length() == 0) {
+            if (applicationId == null || applicationId.isEmpty()) {
                 return FormValidation.error("No applications!");
             }
-            return FormValidation.ok();
+
+            try {
+                // We place customer-friendly error messages in the applicationId.
+                // If parsing fails, it must be an error message.
+                Long.parseLong(applicationId);
+                return FormValidation.ok();
+            } catch (NumberFormatException e) {
+                return FormValidation.error(applicationId);
+            }
         }
 
         @Override

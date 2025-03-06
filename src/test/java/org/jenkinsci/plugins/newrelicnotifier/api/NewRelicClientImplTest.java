@@ -1,62 +1,98 @@
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
-
-import java.io.IOException;
-import java.io.PrintStream;
-import java.net.HttpURLConnection;
-import java.util.LinkedList;
-import java.util.List;
-
 import hudson.model.TaskListener;
 import org.apache.http.HttpVersion;
 import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.HttpURLConnection;
+import java.util.LinkedList;
+import java.util.List;
 
+import static org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl.API_HOST;
+import static org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl.EUROPEAN_API_HOST;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+@RunWith(JUnit4.class)
 public class NewRelicClientImplTest {
 
     private NewRelicClientStub nrClient;
-    private HttpClientStub httpClient = mock(HttpClientStub.class);
+    private final HttpClientStub httpClient = mock(HttpClientStub.class);
     
     @Before
-    public void setup() throws IOException {
+    public void setup() {
         nrClient = new NewRelicClientStub();
         nrClient.setHttpClient(httpClient);
 
     }
-   
-    @SuppressWarnings("unchecked")
+
     @Test
-    public void getMultiplePagesApplications() throws ClientProtocolException, IOException {
+    public void getMultiplePagesApplications() throws IOException {
         int expectedSize = NewRelicClientImpl.PAGE_SIZE + 50;
         when(httpClient.execute(any(HttpUriRequest.class), any(ResponseHandler.class)))
             .thenAnswer(getAnswerForAppSize(expectedSize));
 
         try {
-            List<Application> apps = nrClient.getApplications("someapikey");
-            assertTrue(apps.size() == expectedSize);
+            List<Application> apps = nrClient.getApplications("someapikey", false);
+            assertEquals(expectedSize, apps.size());
             verify(httpClient, times(2)).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
         } catch (IOException e) {
-            e.printStackTrace();
+            fail("Did not expect an exception.");
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @Test
+    public void test_getApplications() throws IOException {
+        test_getApplicationsParmeterized(false, API_HOST);
+        test_getApplicationsParmeterized(true, EUROPEAN_API_HOST);
+    }
+
+    private void test_getApplicationsParmeterized(boolean european, String expectedApiHost) throws IOException {
+
+        int expectedSize = NewRelicClientImpl.PAGE_SIZE - 50;
+        when(httpClient.execute(any(HttpUriRequest.class), any(ResponseHandler.class)))
+            .thenAnswer(getAnswerForAppSize(expectedSize));
+
+        try {
+            List<Application> apps = nrClient.getApplications("someapikey", european);
+            assertEquals(expectedSize, apps.size());
+            ArgumentCaptor<HttpUriRequest> httpUriRequestArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
+            verify(httpClient, times(1)).execute(httpUriRequestArgumentCaptor.capture(), any(ResponseHandler.class));
+            HttpUriRequest httpUriRequest = httpUriRequestArgumentCaptor.getValue();
+            assertEquals(expectedApiHost, httpUriRequest.getURI().getHost());
+            reset(httpClient);
+        } catch (IOException e) {
+            fail("Did not expect an exception.");
+        }
+    }
+
     @Test
     public void testFailureScenario() throws IOException {
+        testFailureScenarioParameterized(false, API_HOST);
+        testFailureScenarioParameterized(true, EUROPEAN_API_HOST);
+    }
+
+    public void testFailureScenarioParameterized(boolean european, String expectedApiHost) throws IOException {
         when(httpClient.execute(any()))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     CloseableHttpResponse response = mock(CloseableHttpResponse.class);
@@ -77,7 +113,7 @@ public class NewRelicClientImplTest {
                     "",
                     "deploymentId",
                     "deploymentType",
-                    true,
+                    european,
                     new TaskListener() {
                         @Nonnull
                         @Override
@@ -85,9 +121,12 @@ public class NewRelicClientImplTest {
                             return System.out;
                         }
                     });
-            verify(httpClient, times(3)).execute(any());
+            ArgumentCaptor<HttpUriRequest> httpUriRequestArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
+            verify(httpClient, times(3)).execute(httpUriRequestArgumentCaptor.capture());
+            assertEquals(expectedApiHost, httpUriRequestArgumentCaptor.getValue().getURI().getHost());
+            reset(httpClient);
         } catch (IOException e) {
-            e.printStackTrace();
+            fail("Did not expect an exception.");
         }
     }
 
@@ -109,27 +148,26 @@ public class NewRelicClientImplTest {
         assertEquals(expected, result);
     }
     
-    @SuppressWarnings("unchecked")
     @Test
-    public void getOnePageOfApplications() throws ClientProtocolException, IOException {
+    public void getOnePageOfApplications() throws IOException {
         int expectedSize = NewRelicClientImpl.PAGE_SIZE - 50;
         when(httpClient.execute(any(HttpUriRequest.class), any(ResponseHandler.class)))
             .thenAnswer(getAnswerForAppSize(expectedSize));
 
         try {
-            List<Application> apps = nrClient.getApplications("someapikey");
-            assertTrue(apps.size() == expectedSize);
+            List<Application> apps = nrClient.getApplications("someapikey", false);
+            assertEquals(expectedSize, apps.size());
             verify(httpClient).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
         } catch (IOException e) {
-            e.printStackTrace();
+            fail("Did not expect an exception.");
         }
     }
     
     private Answer<ApplicationList> getAnswerForAppSize(final int size) {
         return new Answer<ApplicationList>() {
             private int count = 0;
-            private int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
-            private int rest = size % NewRelicClientImpl.PAGE_SIZE;
+            private final int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
+            private final int rest = size % NewRelicClientImpl.PAGE_SIZE;
             public ApplicationList answer(InvocationOnMock invocation) {
                 if (count++ < fullPages)
                     return new ApplicationList(getApplicationMocks(NewRelicClientImpl.PAGE_SIZE));
