@@ -33,6 +33,7 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -41,7 +42,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
@@ -72,9 +72,9 @@ import jenkins.model.Jenkins;
  * REST client implementation for the New Relic API.
  */
 public class NewRelicClientImpl implements NewRelicClient {
-    
+
     public static final String API_SCHEME = "https";
-    
+
     public static final String API_HOST = "api.newrelic.com";
     public static final String EUROPEAN_API_HOST = "api.eu.newrelic.com";
 
@@ -83,11 +83,11 @@ public class NewRelicClientImpl implements NewRelicClient {
     public static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
 
     public static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
-    
+
     public static final String PAGE_PARAMETER = "page";
     public static final String GRAPHQL_URL = API_HOST;
     public static final String EUROPEAN_GRAPHQL_URL = EUROPEAN_API_HOST;
-    
+
     public static final int PAGE_SIZE = 200;
 
     /**
@@ -101,20 +101,20 @@ public class NewRelicClientImpl implements NewRelicClient {
 
         HttpGet request = new HttpGet();
         setHeaders(request, apiKey);
-        
+
         ResponseHandler<ApplicationList> rh = getApplicationsHandler();
-        
+
         try {
             int page = 1;
             ApplicationList response = null;
-            //NewRelic pages appservice with 200 objects max. 
+            //NewRelic pages appservice with 200 objects max.
             //The other way is making always an extra request to check for an empty list. Or parse "Link" Response header
             while(page == 1 || response.getApplications().size() == PAGE_SIZE) {
                 request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++, european ? EUROPEAN_API_HOST : API_HOST));
                 response = client.execute(request, rh);
                 result.addAll(response.getApplications());
             }
-            
+
         } finally {
             if (client != null) {
                 client.close();
@@ -130,7 +130,7 @@ public class NewRelicClientImpl implements NewRelicClient {
     public void sendNotification(String apiKey, String applicationId, String description, String revision,
                                     String changelog, String user, boolean european) throws IOException {
         String appUrl = "/v2/applications/" + applicationId;
-        
+
         URI url = getEndpointURI(appUrl + DEPLOYMENT_ENDPOINT, null, european ? EUROPEAN_API_HOST : API_HOST);
 
         HttpPost request = new HttpPost(url);
@@ -349,15 +349,14 @@ public class NewRelicClientImpl implements NewRelicClient {
                 Proxy proxy = proxyConfig.createProxy(host);
                 if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
                     SocketAddress addr = proxy.address();
-                    if (addr instanceof InetSocketAddress) {
-                        InetSocketAddress proxyAddr = (InetSocketAddress) addr;
-                        HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
+                    if (addr instanceof InetSocketAddress proxyAddr) {
+	                    HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
                         DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
                         builder = builder.setRoutePlanner(routePlanner);
 
                         String proxyUser = proxyConfig.getUserName();
                         if (proxyUser != null) {
-                            String proxyPass = proxyConfig.getPassword();
+                            String proxyPass = proxyConfig.getSecretPassword().getPlainText();
                             CredentialsProvider cred = new BasicCredentialsProvider();
                             cred.setCredentials(new AuthScope(proxyHost),
                                     new UsernamePasswordCredentials(proxyUser, proxyPass));
@@ -378,7 +377,7 @@ public class NewRelicClientImpl implements NewRelicClient {
         request.addHeader("Accept", "application/json");
         request.addHeader("NewRelic-Requesting-Services", "newrelic-jenkins-plugin");
     }
-    
+
     /**
      * Retrieves the URI object for the given endpoint and page if the content wanted is paged.
      * @param endpoint
@@ -392,35 +391,32 @@ public class NewRelicClientImpl implements NewRelicClient {
         uriBuilder.setPath(endpoint);
         if (page != null)
             uriBuilder.setParameter(PAGE_PARAMETER, page.toString());
-        
+
         try {
             return uriBuilder.build();
         } catch (URISyntaxException e) {
             // no need to handle this
             return null;
         }
-        
+
     }
 
     private ResponseHandler<ApplicationList> getApplicationsHandler() {
-        return new ResponseHandler<ApplicationList>() {
-            @Override
-            public ApplicationList handleResponse(HttpResponse response) throws IOException {
-                StatusLine statusLine = response.getStatusLine();
-                if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
-                    throw new HttpResponseException(
-                            statusLine.getStatusCode(),
-                            statusLine.getReasonPhrase()
-                    );
-                }
-                HttpEntity entity = response.getEntity();
-                if (entity == null) {
-                    throw new ClientProtocolException("Response contains no content");
-                }
-                Gson gson = new GsonBuilder().create();
-                Reader reader = new InputStreamReader(entity.getContent(), Charset.forName("UTF-8"));
-                return gson.fromJson(reader, ApplicationList.class);
-            }
+        return response -> {
+	        StatusLine statusLine = response.getStatusLine();
+	        if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+		        throw new HttpResponseException(
+				        statusLine.getStatusCode(),
+				        statusLine.getReasonPhrase()
+		        );
+	        }
+	        HttpEntity entity = response.getEntity();
+	        if (entity == null) {
+		        throw new ClientProtocolException("Response contains no content");
+	        }
+	        Gson gson = new GsonBuilder().create();
+	        Reader reader = new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8);
+	        return gson.fromJson(reader, ApplicationList.class);
         };
     }
 }

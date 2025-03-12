@@ -24,6 +24,7 @@
 package org.jenkinsci.plugins.newrelicnotifier;
 
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
@@ -40,7 +41,6 @@ import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClient;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
 
@@ -138,7 +138,7 @@ public class NewRelicDeploymentNotifier extends Notifier implements SimpleBuildS
     }
 
     @Override
-    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
+    public void perform(@NonNull Run<?, ?> run, @NonNull FilePath filePath, @NonNull Launcher launcher, @NonNull TaskListener taskListener) throws InterruptedException, IOException {
         EnvVars envVars = run.getEnvironment(taskListener);
         NewRelicClient client = getClient();
         for (DeploymentNotificationBean n : getNotifications()) {

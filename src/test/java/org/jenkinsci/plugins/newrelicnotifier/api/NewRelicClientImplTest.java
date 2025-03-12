@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.TaskListener;
 import org.apache.http.HttpVersion;
 import org.apache.http.StatusLine;
@@ -15,7 +16,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.HttpURLConnection;
@@ -38,7 +38,7 @@ public class NewRelicClientImplTest {
 
     private NewRelicClientStub nrClient;
     private final HttpClientStub httpClient = mock(HttpClientStub.class);
-    
+
     @Before
     public void setup() {
         nrClient = new NewRelicClientStub();
@@ -115,7 +115,7 @@ public class NewRelicClientImplTest {
                     "deploymentType",
                     european,
                     new TaskListener() {
-                        @Nonnull
+                        @NonNull
                         @Override
                         public PrintStream getLogger() {
                             return System.out;
@@ -147,7 +147,7 @@ public class NewRelicClientImplTest {
         String expected = "71c3f8f5-cecc-4299-aa0f-18f3fafa6313";
         assertEquals(expected, result);
     }
-    
+
     @Test
     public void getOnePageOfApplications() throws IOException {
         int expectedSize = NewRelicClientImpl.PAGE_SIZE - 50;
@@ -162,21 +162,22 @@ public class NewRelicClientImplTest {
             fail("Did not expect an exception.");
         }
     }
-    
-    private Answer<ApplicationList> getAnswerForAppSize(final int size) {
-        return new Answer<ApplicationList>() {
-            private int count = 0;
-            private final int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
-            private final int rest = size % NewRelicClientImpl.PAGE_SIZE;
-            public ApplicationList answer(InvocationOnMock invocation) {
-                if (count++ < fullPages)
-                    return new ApplicationList(getApplicationMocks(NewRelicClientImpl.PAGE_SIZE));
 
-                return new ApplicationList(getApplicationMocks(rest));
-            }
+    private Answer<ApplicationList> getAnswerForAppSize(final int size) {
+        return new Answer<>() {
+	        private int count = 0;
+	        private final int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
+	        private final int rest = size % NewRelicClientImpl.PAGE_SIZE;
+
+	        public ApplicationList answer(InvocationOnMock invocation) {
+		        if (count++ < fullPages)
+			        return new ApplicationList(getApplicationMocks(NewRelicClientImpl.PAGE_SIZE));
+
+		        return new ApplicationList(getApplicationMocks(rest));
+	        }
         };
     }
-    
+
     private List<Application> getApplicationMocks(int size) {
         List<Application> apps = new LinkedList<>();
         for (int i = 0; i < size; i++) {
@@ -184,5 +185,5 @@ public class NewRelicClientImplTest {
         }
         return apps;
     }
-    
+
 }
