@@ -88,9 +88,14 @@ public class NewRelicDeploymentNotifier extends Notifier implements SimpleBuildS
                 result = false;
             } else {
                 try {
+                    if (DeploymentNotificationBean.isBrowserApplicationId(n.getApplicationId()) && StringUtils.isEmpty(n.getEntityGuid(envVars))) {
+                        listener.error("Browser application '%s' requires EntityGuid for change tracking.", n.getApplicationId());
+                        result = false;
+                        continue;
+                    }
                     if(StringUtils.isEmpty(n.getEntityGuid(envVars))) {
                         client.sendNotification(Secret.toString(credentials.getPassword()),
-                                n.getApplicationId(),
+                                DeploymentNotificationBean.rawApplicationId(n.getApplicationId()),
                                 n.getDescription(envVars),
                                 n.getRevision(envVars),
                                 n.getChangelog(envVars),
@@ -142,6 +147,10 @@ public class NewRelicDeploymentNotifier extends Notifier implements SimpleBuildS
         EnvVars envVars = run.getEnvironment(taskListener);
         NewRelicClient client = getClient();
         for (DeploymentNotificationBean n : getNotifications()) {
+            if (StringUtils.isEmpty(n.getEntityGuid(envVars))) {
+                taskListener.error("Entity GUID is required for change tracking notifications.");
+                continue;
+            }
             UsernamePasswordCredentials credentials = DeploymentNotificationBean.getCredentials(run.getParent(), n.getApiKey(), client.getApiEndpoint(n.getEuropean(envVars)));
             if (credentials == null) {
                 taskListener.error("Invalid credentials for Entity GUID: %s", n.getEntityGuid(envVars));

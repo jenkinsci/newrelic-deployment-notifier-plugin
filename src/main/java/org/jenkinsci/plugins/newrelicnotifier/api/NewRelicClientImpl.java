@@ -67,6 +67,7 @@ import com.google.gson.JsonObject;
 
 import hudson.ProxyConfiguration;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.newrelicnotifier.DeploymentNotificationBean;
 
 /**
  * REST client implementation for the New Relic API.
@@ -83,6 +84,7 @@ public class NewRelicClientImpl implements NewRelicClient {
     public static final String DEPLOYMENT_ENDPOINT = "/deployments.json";
 
     public static final String APPLICATIONS_ENDPOINT = "/v2/applications.json";
+    public static final String BROWSER_APPLICATIONS_ENDPOINT = "/v2/browser_applications.json";
     
     public static final String PAGE_PARAMETER = "page";
     public static final String GRAPHQL_URL = API_HOST;
@@ -97,30 +99,78 @@ public class NewRelicClientImpl implements NewRelicClient {
     public List<Application> getApplications(String apiKey, boolean european) throws IOException {
         List<Application> result = new LinkedList<>();
 
-        CloseableHttpClient client = getHttpClient(european ? EUROPEAN_API_HOST : API_HOST);
+        String host = european ? EUROPEAN_API_HOST : API_HOST;
+        CloseableHttpClient client = getHttpClient(host);
 
         HttpGet request = new HttpGet();
         setHeaders(request, apiKey);
-        
-        ResponseHandler<ApplicationList> rh = getApplicationsHandler();
-        
+
+        ResponseHandler<ApplicationList> apmHandler = getApplicationsHandler();
+        ResponseHandler<BrowserApplicationList> browserHandler = getBrowserApplicationsHandler();
+
         try {
-            int page = 1;
-            ApplicationList response = null;
-            //NewRelic pages appservice with 200 objects max. 
-            //The other way is making always an extra request to check for an empty list. Or parse "Link" Response header
-            while(page == 1 || response.getApplications().size() == PAGE_SIZE) {
-                request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++, european ? EUROPEAN_API_HOST : API_HOST));
-                response = client.execute(request, rh);
-                result.addAll(response.getApplications());
-            }
-            
+            addPagedApmApplications(client, request, host, apmHandler, result);
+            addPagedBrowserApplications(client, request, host, browserHandler, result);
         } finally {
             if (client != null) {
                 client.close();
             }
         }
         return result;
+    }
+
+    private void addPagedApmApplications(
+            CloseableHttpClient client,
+            HttpGet request,
+            String host,
+            ResponseHandler<ApplicationList> handler,
+            List<Application> result
+    ) throws IOException {
+        int page = 1;
+        ApplicationList response = null;
+        // New Relic paginates with up to 200 items per page.
+        while (page == 1 || getApplications(response).size() == PAGE_SIZE) {
+            request.setURI(getEndpointURI(APPLICATIONS_ENDPOINT, page++, host));
+            response = client.execute(request, handler);
+            for (Application application : getApplications(response)) {
+                result.add(new Application(application.getId(), String.format("[APM] %s", application.getName())));
+            }
+        }
+    }
+
+    private void addPagedBrowserApplications(
+            CloseableHttpClient client,
+            HttpGet request,
+            String host,
+            ResponseHandler<BrowserApplicationList> handler,
+            List<Application> result
+    ) throws IOException {
+        int page = 1;
+        BrowserApplicationList response = null;
+        while (page == 1 || getBrowserApplications(response).size() == PAGE_SIZE) {
+            request.setURI(getEndpointURI(BROWSER_APPLICATIONS_ENDPOINT, page++, host));
+            response = client.execute(request, handler);
+            for (Application application : getBrowserApplications(response)) {
+                result.add(new Application(
+                        DeploymentNotificationBean.BROWSER_APPLICATION_PREFIX + application.getId(),
+                        String.format("[Browser] %s", application.getName())
+                ));
+            }
+        }
+    }
+
+    private List<Application> getApplications(ApplicationList response) {
+        if (response == null || response.getApplications() == null) {
+            return new LinkedList<>();
+        }
+        return response.getApplications();
+    }
+
+    private List<Application> getBrowserApplications(BrowserApplicationList response) {
+        if (response == null || response.getBrowserApplications() == null) {
+            return new LinkedList<>();
+        }
+        return response.getBrowserApplications();
     }
 
     /**
@@ -217,6 +267,7 @@ public class NewRelicClientImpl implements NewRelicClient {
 
         try {
             int tries = 0;
+            String lastResponseBody = null;
             while (tries++ < 3) {
                 CloseableHttpResponse response = client.execute(request);
                 StatusLine statusLine = response.getStatusLine();
@@ -241,18 +292,28 @@ public class NewRelicClientImpl implements NewRelicClient {
                             responseBody = IOUtils.toString(content, Charset.defaultCharset());
                         }
                     }
-                    responseBody += ", requestBody: " + strPayload;
+                    lastResponseBody = responseBody;
                     String deploymentId = parseResponseBody(responseBody);
-                    if (deploymentId != null && deploymentId.length() == 36) {
+                    if (deploymentId != null && deploymentId.length() > 0) {
                         listener.getLogger().println("Notified New Relic. New Relic Deployment ID: " + deploymentId);
                         break;
                     } else {
+                        if (responseBody != null && responseBody.contains("\"errors\"")) {
+                            listener.getLogger().println("New Relic change tracking returned errors: " + responseBody);
+                            throw new IOException("New Relic change tracking API returned GraphQL errors.");
+                        }
                         if (tries == 3) {
-                            listener.getLogger().println("Unable to reach New Relic to record the Deployment Id");
+                            throw new IOException("New Relic did not return a deploymentId. Response body: " + responseBody + ", requestBody: " + strPayload);
                         } else {
                             listener.getLogger().println("Retrying calling New Relic API...");
                         }
                     }
+                }
+            }
+            if (lastResponseBody != null) {
+                String deploymentId = parseResponseBody(lastResponseBody);
+                if (deploymentId == null || deploymentId.isEmpty()) {
+                    throw new IOException("No deployment marker was created by New Relic. Last response body: " + lastResponseBody + ", requestBody: " + strPayload);
                 }
             }
         } finally {
@@ -264,12 +325,26 @@ public class NewRelicClientImpl implements NewRelicClient {
     }
 
     public String parseResponseBody(String str) {
-        if (str == null || !str.contains("deploymentId\":\"")) {
+        if (str == null || str.trim().isEmpty()) {
             return null;
         }
-        int start = str.indexOf("deploymentId\":\"");
-        String subString = str.substring(start + "deploymentId\":\"".length());
-        return subString.substring(0, 36);
+        try {
+            JsonObject root = com.google.gson.JsonParser.parseString(str).getAsJsonObject();
+            if (!root.has("data")) {
+                return null;
+            }
+            JsonObject data = root.getAsJsonObject("data");
+            if (data == null || !data.has("changeTrackingCreateDeployment")) {
+                return null;
+            }
+            JsonObject deployment = data.getAsJsonObject("changeTrackingCreateDeployment");
+            if (deployment == null || !deployment.has("deploymentId") || deployment.get("deploymentId").isJsonNull()) {
+                return null;
+            }
+            return deployment.get("deploymentId").getAsString();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /**
@@ -420,6 +495,28 @@ public class NewRelicClientImpl implements NewRelicClient {
                 Gson gson = new GsonBuilder().create();
                 Reader reader = new InputStreamReader(entity.getContent(), Charset.forName("UTF-8"));
                 return gson.fromJson(reader, ApplicationList.class);
+            }
+        };
+    }
+
+    private ResponseHandler<BrowserApplicationList> getBrowserApplicationsHandler() {
+        return new ResponseHandler<BrowserApplicationList>() {
+            @Override
+            public BrowserApplicationList handleResponse(HttpResponse response) throws IOException {
+                StatusLine statusLine = response.getStatusLine();
+                if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+                    throw new HttpResponseException(
+                            statusLine.getStatusCode(),
+                            statusLine.getReasonPhrase()
+                    );
+                }
+                HttpEntity entity = response.getEntity();
+                if (entity == null) {
+                    throw new ClientProtocolException("Response contains no content");
+                }
+                Gson gson = new GsonBuilder().create();
+                Reader reader = new InputStreamReader(entity.getContent(), Charset.forName("UTF-8"));
+                return gson.fromJson(reader, BrowserApplicationList.class);
             }
         };
     }
