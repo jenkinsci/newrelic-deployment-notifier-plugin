@@ -149,4 +149,69 @@ public class NewRelicDeploymentNotifierTest {
         FreeStyleBuild b = p.scheduleBuild2(0).get();
         jenkinsRule.assertBuildStatus(Result.SUCCESS, b);
     }
+
+    @Test
+    public void browserSelectionWithoutEntityGuidFails() throws Exception {
+        FreeStyleProject p = jenkinsRule.createFreeStyleProject();
+
+        List<DeploymentNotificationBean> notifications = new ArrayList<>();
+        DeploymentNotificationBean notificationBean = new DeploymentNotificationBean(
+                credentialsId,
+                DeploymentNotificationBean.BROWSER_APPLICATION_PREFIX + "1467676503",
+                "description",
+                "revision",
+                "changelog",
+                "commit",
+                "deeplink",
+                "user",
+                "",
+                "deploymentId",
+                "deploymentType",
+                "groupId",
+                "timestamp",
+                "version",
+                false
+        );
+        notifications.add(notificationBean);
+
+        NewRelicDeploymentNotifier notifier = spy(new NewRelicDeploymentNotifier(notifications));
+        when(notifier.getClient()).thenReturn(client);
+
+        p.getPublishersList().add(notifier);
+        FreeStyleBuild build = p.scheduleBuild2(0).get();
+        jenkinsRule.assertBuildStatus(Result.FAILURE, build);
+        jenkinsRule.assertLogContains("requires EntityGuid", build);
+    }
+
+    @Test
+    public void browserSelectionWithEntityGuidSucceeds() throws Exception {
+        FreeStyleProject p = jenkinsRule.createFreeStyleProject();
+
+        List<DeploymentNotificationBean> notifications = new ArrayList<>();
+        DeploymentNotificationBean notificationBean = new DeploymentNotificationBean(
+                credentialsId,
+                DeploymentNotificationBean.BROWSER_APPLICATION_PREFIX + "1467676503",
+                "description",
+                "revision",
+                "changelog",
+                "commit",
+                "deeplink",
+                "user",
+                "entityGuid",
+                "deploymentId",
+                "deploymentType",
+                "groupId",
+                "timestamp",
+                "version",
+                false
+        );
+        notifications.add(notificationBean);
+
+        NewRelicDeploymentNotifier notifier = spy(new NewRelicDeploymentNotifier(notifications));
+        when(notifier.getClient()).thenReturn(client);
+
+        p.getPublishersList().add(notifier);
+        FreeStyleBuild build = p.scheduleBuild2(0).get();
+        jenkinsRule.assertBuildStatus(Result.SUCCESS, build);
+    }
 }

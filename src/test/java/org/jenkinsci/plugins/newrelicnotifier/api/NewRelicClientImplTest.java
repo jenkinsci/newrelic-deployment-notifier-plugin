@@ -19,8 +19,10 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.HttpURLConnection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl.API_HOST;
 import static org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl.EUROPEAN_API_HOST;
@@ -54,8 +56,8 @@ public class NewRelicClientImplTest {
 
         try {
             List<Application> apps = nrClient.getApplications("someapikey", false);
-            assertEquals(expectedSize, apps.size());
-            verify(httpClient, times(2)).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
+            assertEquals(expectedSize * 2, apps.size());
+            verify(httpClient, times(4)).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
         } catch (IOException e) {
             fail("Did not expect an exception.");
         }
@@ -75,11 +77,12 @@ public class NewRelicClientImplTest {
 
         try {
             List<Application> apps = nrClient.getApplications("someapikey", european);
-            assertEquals(expectedSize, apps.size());
+            assertEquals(expectedSize * 2, apps.size());
             ArgumentCaptor<HttpUriRequest> httpUriRequestArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
-            verify(httpClient, times(1)).execute(httpUriRequestArgumentCaptor.capture(), any(ResponseHandler.class));
-            HttpUriRequest httpUriRequest = httpUriRequestArgumentCaptor.getValue();
-            assertEquals(expectedApiHost, httpUriRequest.getURI().getHost());
+            verify(httpClient, times(2)).execute(httpUriRequestArgumentCaptor.capture(), any(ResponseHandler.class));
+            for (HttpUriRequest httpUriRequest : httpUriRequestArgumentCaptor.getAllValues()) {
+                assertEquals(expectedApiHost, httpUriRequest.getURI().getHost());
+            }
             reset(httpClient);
         } catch (IOException e) {
             fail("Did not expect an exception.");
@@ -156,23 +159,31 @@ public class NewRelicClientImplTest {
 
         try {
             List<Application> apps = nrClient.getApplications("someapikey", false);
-            assertEquals(expectedSize, apps.size());
-            verify(httpClient).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
+            assertEquals(expectedSize * 2, apps.size());
+            verify(httpClient, times(2)).execute(any(HttpUriRequest.class), any(ResponseHandler.class));
         } catch (IOException e) {
             fail("Did not expect an exception.");
         }
     }
     
-    private Answer<ApplicationList> getAnswerForAppSize(final int size) {
-        return new Answer<ApplicationList>() {
-            private int count = 0;
+    private Answer<Object> getAnswerForAppSize(final int size) {
+        return new Answer<Object>() {
             private final int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
             private final int rest = size % NewRelicClientImpl.PAGE_SIZE;
-            public ApplicationList answer(InvocationOnMock invocation) {
-                if (count++ < fullPages)
-                    return new ApplicationList(getApplicationMocks(NewRelicClientImpl.PAGE_SIZE));
+            private final Map<String, Integer> countsByPath = new HashMap<>();
 
-                return new ApplicationList(getApplicationMocks(rest));
+            public Object answer(InvocationOnMock invocation) {
+                HttpUriRequest request = (HttpUriRequest) invocation.getArguments()[0];
+                String path = request.getURI().getPath();
+                int count = countsByPath.getOrDefault(path, 0);
+                countsByPath.put(path, count + 1);
+
+                int pageSize = count < fullPages ? NewRelicClientImpl.PAGE_SIZE : rest;
+                List<Application> apps = getApplicationMocks(pageSize);
+                if (path.contains("browser_applications")) {
+                    return new BrowserApplicationList(apps);
+                }
+                return new ApplicationList(apps);
             }
         };
     }

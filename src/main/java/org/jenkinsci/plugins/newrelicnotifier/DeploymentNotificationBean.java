@@ -55,6 +55,8 @@ import java.util.List;
  */
 public class DeploymentNotificationBean extends AbstractDescribableImpl<DeploymentNotificationBean> {
 
+    public static final String BROWSER_APPLICATION_PREFIX = "browser:";
+
     private final String apiKey;
     private final String applicationId;
     private final String description;
@@ -192,6 +194,17 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         return env.expand(getUser());
     }
 
+    public static boolean isBrowserApplicationId(String applicationId) {
+        return applicationId != null && applicationId.startsWith(BROWSER_APPLICATION_PREFIX);
+    }
+
+    public static String rawApplicationId(String applicationId) {
+        if (isBrowserApplicationId(applicationId)) {
+            return applicationId.substring(BROWSER_APPLICATION_PREFIX.length());
+        }
+        return applicationId;
+    }
+
     @CheckForNull
     public static StandardUsernamePasswordCredentials getCredentials(Job<?,?> owner, String credentialId, String source) {
         List<StandardUsernamePasswordCredentials> credentials = availableCredentials(owner, source);
@@ -228,7 +241,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
             ListBoxModel items = new ListBoxModel();
             if (apiKey != null && !apiKey.isEmpty()) {
                 NewRelicClient client = getClient();
-                UsernamePasswordCredentials credentials = getCredentials(owner, apiKey, client.getApiEndpoint());
+                UsernamePasswordCredentials credentials = getCredentials(owner, apiKey, client.getApiEndpoint(european != null && european));
                 if (credentials != null) {
                     List<Application> applications;
                     try {
@@ -249,15 +262,19 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
             return items;
         }
 
-        public FormValidation doCheckApplicationId(@QueryParameter("applicationId") String applicationId) {
+        public FormValidation doCheckApplicationId(@QueryParameter("applicationId") String applicationId, @QueryParameter("entityGuid") String entityGuid) {
             if (applicationId == null || applicationId.isEmpty()) {
                 return FormValidation.error("No applications!");
+            }
+
+            if (isBrowserApplicationId(applicationId) && (entityGuid == null || entityGuid.trim().isEmpty())) {
+                return FormValidation.error("Browser applications require EntityGuid for New Relic change tracking.");
             }
 
             try {
                 // We place customer-friendly error messages in the applicationId.
                 // If parsing fails, it must be an error message.
-                Long.parseLong(applicationId);
+                Long.parseLong(rawApplicationId(applicationId));
                 return FormValidation.ok();
             } catch (NumberFormatException e) {
                 return FormValidation.error(applicationId);
