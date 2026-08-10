@@ -1,5 +1,11 @@
 Changelog
 =========
+### 1.13
+
+Release date: _2026-08-10_
+
+* [PR#22](https://github.com/jenkinsci/newrelic-deployment-notifier-plugin/pull/22) - Migrate from Commons Lang to native Java Platform functionality
+
 ### 1.12
 
 Release date: _2025-02-24_
