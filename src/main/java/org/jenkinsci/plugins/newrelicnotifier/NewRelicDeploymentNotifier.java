@@ -36,13 +36,13 @@ import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.util.Secret;
 import jenkins.tasks.SimpleBuildStep;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClient;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientImpl;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
 import java.util.List;
+import hudson.Util;
 
 /**
  * Notifies a New Relic instance about deployment.
@@ -88,7 +88,7 @@ public class NewRelicDeploymentNotifier extends Notifier implements SimpleBuildS
                 result = false;
             } else {
                 try {
-                    if(StringUtils.isEmpty(n.getEntityGuid(envVars))) {
+                    if(Util.fixEmpty(n.getEntityGuid(envVars)) == null) {
                         client.sendNotification(Secret.toString(credentials.getPassword()),
                                 n.getApplicationId(),
                                 n.getDescription(envVars),

@@ -30,7 +30,7 @@ import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
-import org.apache.commons.lang.RandomStringUtils;
+import java.security.SecureRandom;
 import org.jenkinsci.plugins.newrelicnotifier.api.HttpClientStub;
 import org.jenkinsci.plugins.newrelicnotifier.api.NewRelicClientStub;
 import org.junit.Before;
@@ -49,9 +49,9 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class NewRelicDeploymentNotifierTest {
 
-    protected String username = RandomStringUtils.randomAlphabetic(10);
-    protected String password = RandomStringUtils.randomAlphabetic(10);
-    protected String credentialsId = RandomStringUtils.randomAlphabetic(4);
+    protected String username = randomAlphabetic(10);
+    protected String password = randomAlphabetic(10);
+    protected String credentialsId = randomAlphabetic(4);
 
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
@@ -148,4 +148,16 @@ public class NewRelicDeploymentNotifierTest {
         FreeStyleBuild b = p.scheduleBuild2(0).get();
         jenkinsRule.assertBuildStatus(Result.SUCCESS, b);
     }
+
+    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+    private static String randomAlphabetic(int length) {
+        StringBuilder builder = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            builder.append(LETTERS.charAt(RANDOM.nextInt(LETTERS.length())));
+        }
+        return builder.toString();
+    }
+
 }
