@@ -23,6 +23,7 @@
  */
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
+import hudson.util.Secret;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -350,17 +351,17 @@ public class NewRelicClientImpl implements NewRelicClient {
                 if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
                     SocketAddress addr = proxy.address();
                     if (addr instanceof InetSocketAddress proxyAddr) {
-	                    HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
+                        HttpHost proxyHost = new HttpHost(proxyAddr.getAddress().getHostAddress(), proxyAddr.getPort());
                         DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
-                        builder = builder.setRoutePlanner(routePlanner);
+                        builder.setRoutePlanner(routePlanner);
 
                         String proxyUser = proxyConfig.getUserName();
                         if (proxyUser != null) {
-                            String proxyPass = proxyConfig.getSecretPassword().getPlainText();
+                            String proxyPass = Secret.toString(proxyConfig.getSecretPassword());
                             CredentialsProvider cred = new BasicCredentialsProvider();
                             cred.setCredentials(new AuthScope(proxyHost),
                                     new UsernamePasswordCredentials(proxyUser, proxyPass));
-                            builder = builder
+                            builder
                                     .setDefaultCredentialsProvider(cred)
                                     .setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
                         }
@@ -403,20 +404,20 @@ public class NewRelicClientImpl implements NewRelicClient {
 
     private ResponseHandler<ApplicationList> getApplicationsHandler() {
         return response -> {
-	        StatusLine statusLine = response.getStatusLine();
-	        if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
-		        throw new HttpResponseException(
-				        statusLine.getStatusCode(),
-				        statusLine.getReasonPhrase()
-		        );
-	        }
-	        HttpEntity entity = response.getEntity();
-	        if (entity == null) {
-		        throw new ClientProtocolException("Response contains no content");
-	        }
-	        Gson gson = new GsonBuilder().create();
-	        Reader reader = new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8);
-	        return gson.fromJson(reader, ApplicationList.class);
+            StatusLine statusLine = response.getStatusLine();
+            if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+                throw new HttpResponseException(
+                        statusLine.getStatusCode(),
+                        statusLine.getReasonPhrase()
+                );
+            }
+            HttpEntity entity = response.getEntity();
+            if (entity == null) {
+                throw new ClientProtocolException("Response contains no content");
+            }
+            Gson gson = new GsonBuilder().create();
+            Reader reader = new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8);
+            return gson.fromJson(reader, ApplicationList.class);
         };
     }
 }

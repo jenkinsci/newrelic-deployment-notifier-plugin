@@ -165,16 +165,16 @@ public class NewRelicClientImplTest {
 
     private Answer<ApplicationList> getAnswerForAppSize(final int size) {
         return new Answer<>() {
-	        private int count = 0;
-	        private final int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
-	        private final int rest = size % NewRelicClientImpl.PAGE_SIZE;
+            private int count = 0;
+            private final int fullPages = size / NewRelicClientImpl.PAGE_SIZE;
+            private final int rest = size % NewRelicClientImpl.PAGE_SIZE;
 
-	        public ApplicationList answer(InvocationOnMock invocation) {
-		        if (count++ < fullPages)
-			        return new ApplicationList(getApplicationMocks(NewRelicClientImpl.PAGE_SIZE));
+            public ApplicationList answer(InvocationOnMock invocation) {
+                if (count++ < fullPages)
+                    return new ApplicationList(getApplicationMocks(NewRelicClientImpl.PAGE_SIZE));
 
-		        return new ApplicationList(getApplicationMocks(rest));
-	        }
+                return new ApplicationList(getApplicationMocks(rest));
+            }
         };
     }
 
