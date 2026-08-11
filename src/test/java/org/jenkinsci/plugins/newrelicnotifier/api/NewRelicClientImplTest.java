@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.newrelicnotifier.api;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.TaskListener;
 import org.apache.http.HttpVersion;
 import org.apache.http.StatusLine;
@@ -17,7 +16,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.util.LinkedList;
 import java.util.List;
@@ -114,13 +112,7 @@ public class NewRelicClientImplTest {
                     "deploymentId",
                     "deploymentType",
                     european,
-                    new TaskListener() {
-                        @NonNull
-                        @Override
-                        public PrintStream getLogger() {
-                            return System.out;
-                        }
-                    });
+                    (TaskListener) () -> System.out);
             ArgumentCaptor<HttpUriRequest> httpUriRequestArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
             verify(httpClient, times(3)).execute(httpUriRequestArgumentCaptor.capture());
             assertEquals(expectedApiHost, httpUriRequestArgumentCaptor.getValue().getURI().getHost());

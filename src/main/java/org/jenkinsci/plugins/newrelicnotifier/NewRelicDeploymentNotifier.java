@@ -177,6 +177,7 @@ public class NewRelicDeploymentNotifier extends Notifier implements SimpleBuildS
         }
 
         @Override
+        @NonNull
         public String getDisplayName() {
             return "New Relic Deployment Notifications";
         }

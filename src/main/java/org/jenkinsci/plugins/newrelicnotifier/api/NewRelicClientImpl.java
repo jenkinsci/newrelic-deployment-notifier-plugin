@@ -232,7 +232,7 @@ public class NewRelicClientImpl implements NewRelicClient {
                     responseBody += ", requestBody: " + strPayload;
                     throw new HttpResponseException(
                             statusLine.getStatusCode(),
-                            statusLine.getReasonPhrase() + (responseBody != null ? "; Body = " + responseBody : "")
+                        statusLine.getReasonPhrase() + "; Body = " + responseBody
                     );
                 } else {
                     String responseBody = null;
@@ -317,7 +317,7 @@ public class NewRelicClientImpl implements NewRelicClient {
 
         payload.entrySet().forEach(e -> {
             if (e.getValue() != null && e.getValue().toString().trim().length() > 2) {
-                if (header.length() > 0) {
+                if (!header.isEmpty()) {
                     header.append(", ");
                 }
                 String value = e.getValue().toString();

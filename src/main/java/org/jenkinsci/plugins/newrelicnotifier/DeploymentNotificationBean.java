@@ -31,6 +31,7 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
@@ -215,7 +216,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         }
 
         public FormValidation doCheckApiKey(@QueryParameter("apiKey") String apiKey) {
-            if (apiKey == null || apiKey.length() == 0) {
+            if (apiKey == null || apiKey.isEmpty()) {
                 return FormValidation.error("Missing API Key");
             }
             return FormValidation.ok();
@@ -265,6 +266,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         }
 
         @Override
+        @NonNull
         public String getDisplayName() {
             return "Deployment Notification";
         }
