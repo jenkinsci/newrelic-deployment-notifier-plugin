@@ -30,6 +30,8 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
@@ -46,7 +48,6 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-import javax.annotation.CheckForNull;
 import java.io.IOException;
 import java.util.List;
 
@@ -165,7 +166,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
     }
 
     public boolean getEuropean(EnvVars env) {
-        return Boolean.valueOf(env.expand(Boolean.toString(getEuropean())));
+        return Boolean.parseBoolean(env.expand(Boolean.toString(getEuropean())));
     }
 
     public String getCommit(EnvVars env) { return env.expand(getCommit()); }
@@ -215,7 +216,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         }
 
         public FormValidation doCheckApiKey(@QueryParameter("apiKey") String apiKey) {
-            if (apiKey == null || apiKey.length() == 0) {
+            if (apiKey == null || apiKey.isEmpty()) {
                 return FormValidation.error("Missing API Key");
             }
             return FormValidation.ok();
@@ -265,6 +266,7 @@ public class DeploymentNotificationBean extends AbstractDescribableImpl<Deployme
         }
 
         @Override
+        @NonNull
         public String getDisplayName() {
             return "Deployment Notification";
         }

@@ -38,9 +38,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,7 +59,7 @@ public class NewRelicDeploymentNotifierTest {
     private NewRelicClientStub client;
 
     @Before
-    public void setup() throws IOException {
+    public void setup() throws Exception {
         client = spy(new NewRelicClientStub());
         client.setHttpClient(new HttpClientStub());
 
